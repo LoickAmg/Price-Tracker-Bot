@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Suivi de prix</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-card: #171a21;
+    --border: #262b36;
+    --text: #e6e8ec;
+    --text-soft: #9aa1af;
+    --accent-drop: #4ade80;
+    --accent-rise: #f87171;
+    --accent-flat: #7c8394;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  }
+  header {
+    padding: 2.5rem 1.5rem 1.5rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  header h1 {
+    margin: 0 0 0.4rem;
+    font-size: 1.75rem;
+    letter-spacing: -0.01em;
+  }
+  header p {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 0.95rem;
+  }
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .card h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .card a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .card a:hover {
+    text-decoration: underline;
+  }
+  .price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .price {
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  .delta {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .delta.drop { color: var(--accent-drop); }
+  .delta.rise { color: var(--accent-rise); }
+  .delta.flat { color: var(--accent-flat); }
+  .meta {
+    font-size: 0.8rem;
+    color: var(--text-soft);
+  }
+  svg.sparkline {
+    width: 100%;
+    height: 48px;
+    display: block;
+  }
+  .empty, .error {
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    color: var(--text-soft);
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>📉 Suivi de prix</h1>
+    <p>Mis à jour automatiquement par un workflow GitHub Actions programmé — historique et graphiques ci-dessous.</p>
+  </header>
+  <main id="products"></main>
+  <p class="empty" id="empty-state" hidden>Aucun produit suivi pour l'instant — le premier run programmé remplira cette page.</p>
+  <p class="error" id="error-state" hidden>Impossible de charger l'historique des prix.</p>
+
+  <script>
+    async function loadHistory() {
+      try {
+        const response = await fetch("./data/price-history.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(response.statusText);
+        return await response.json();
+      } catch (err) {
+        document.getElementById("error-state").hidden = false;
+        return null;
+      }
+    }
+
+    function formatPrice(value, currency) {
+      const symbols = { EUR: "€", USD: "$", GBP: "£" };
+      const symbol = symbols[currency] ?? currency;
+      return `${Number(value).toFixed(2)} ${symbol}`;
+    }
+
+    function buildSparkline(history) {
+      if (history.length < 2) return "";
+      const prices = history.map((h) => Number(h.price));
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      const range = max - min || 1;
+      const width = 280;
+      const height = 40;
+      const step = width / (prices.length - 1);
+      const points = prices
+        .map((p, i) => {
+          const x = i * step;
+          const y = height - ((p - min) / range) * height;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        })
+        .join(" ");
+      const trendUp = prices[prices.length - 1] > prices[0];
+      const stroke = trendUp ? "var(--accent-rise)" : "var(--accent-drop)";
+      return `<svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+        <polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+      </svg>`;
+    }
+
+    function renderProduct(id, data) {
+      const history = data.history ?? [];
+      const current = history.at(-1);
+      const previous = history.at(-2);
+      let deltaHtml = "";
+      if (current && previous) {
+        const diff = Number(current.price) - Number(previous.price);
+        const cls = diff < 0 ? "drop" : diff > 0 ? "rise" : "flat";
+        const sign = diff > 0 ? "+" : "";
+        deltaHtml = `<span class="delta ${cls}">${sign}${diff.toFixed(2)}</span>`;
+      }
+      const priceHtml = current
+        ? `<span class="price">${formatPrice(current.price, data.currency)}</span>`
+        : `<span class="price">—</span>`;
+      const checked = data.last_checked
+        ? new Date(data.last_checked).toLocaleString("fr-FR")
+        : "jamais";
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <h2><a href="${data.url}" target="_blank" rel="noopener">${data.name ?? id}</a></h2>
+        <div class="price-row">${priceHtml}${deltaHtml}</div>
+        ${buildSparkline(history)}
+        <div class="meta">${history.length} relevé(s) · dernière vérification : ${checked}</div>
+      `;
+      return card;
+    }
+
+    loadHistory().then((data) => {
+      if (!data) return;
+      const ids = Object.keys(data);
+      const container = document.getElementById("products");
+      if (ids.length === 0) {
+        document.getElementById("empty-state").hidden = false;
+        return;
+      }
+      for (const id of ids) {
+        container.appendChild(renderProduct(id, data[id]));
+      }
+    });
+  </script>
+</body>
+</html>

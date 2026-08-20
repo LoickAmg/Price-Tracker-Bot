@@ -1,0 +1,26 @@
+# Produits suivis. Chaque entrée : id (clé stable, sert de nom de fichier
+# dans l'historique — ne pas le changer une fois des données enregistrées),
+# name (affiché dans les notifs/le dashboard), url, selector (sélecteur CSS
+# pointant vers l'élément qui contient le prix), currency (juste informatif,
+# affiché à côté du prix).
+#
+# Comment trouver le sélecteur sur un site : ouvre la page produit, clic
+# droit sur le prix affiché → "Inspecter" → clic droit sur la ligne HTML
+# surlignée → "Copier" → "Copier le sélecteur". Colle-le ici tel quel.
+#
+# Les deux entrées ci-dessous pointent vers books.toscrape.com, un site
+# public fait exprès pour s'entraîner au scraping (aucune restriction, ToS
+# ni robots.txt ne l'interdit) — à remplacer par tes propres produits.
+
+products:
+  - id: exemple-light-in-attic
+    name: "A Light in the Attic (exemple)"
+    url: "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
+    selector: "p.price_color"
+    currency: "GBP"
+
+  - id: exemple-soumission
+    name: "Soumission (exemple)"
+    url: "https://books.toscrape.com/catalogue/soumission_998/index.html"
+    selector: "p.price_color"
+    currency: "GBP"
