@@ -89,3 +89,9 @@ pytest
 Python 3.11+, `requests` + `BeautifulSoup4` (scraping), `PyYAML` (config),
 HTML/JS vanilla (dashboard, aucune dépendance externe), GitHub Actions
 (cron + CI), GitHub Pages (hébergement statique).
+
+## Limites et exploitation responsable
+
+Le scraper dépend de la structure HTML de chaque site : un changement de sélecteur peut rendre une source temporairement indisponible. Avant d’ajouter un site, documenter son sélecteur, son URL de test et la date de vérification dans la configuration. Respecter les conditions d’utilisation, le fichier `robots.txt`, les limites de fréquence et les éventuelles restrictions géographiques ; ce projet ne doit pas servir à contourner une protection anti-bot.
+
+Les notifications sont des effets externes : utiliser des canaux de test et ne jamais versionner les webhooks ou mots de passe SMTP. Le workflow doit rester idempotent : une même exécution ne doit pas créer plusieurs alertes pour le même changement de prix. Pour diagnostiquer une évolution, conserver un petit exemple anonymisé d’historique et la date de dernière vérification plutôt qu’un export illimité du site.

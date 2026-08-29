@@ -6,31 +6,35 @@
 <title>Suivi de prix</title>
 <style>
   :root {
-    --bg: #0f1115;
-    --bg-card: #171a21;
-    --border: #262b36;
-    --text: #e6e8ec;
-    --text-soft: #9aa1af;
-    --accent-drop: #4ade80;
-    --accent-rise: #f87171;
-    --accent-flat: #7c8394;
+    --bg: #f2f0ea;
+    --bg-card: #fffdf8;
+    --border: #d9d5cb;
+    --text: #2c302f;
+    --text-soft: #6d7471;
+    --accent-drop: #2e7d58;
+    --accent-rise: #b75447;
+    --accent-flat: #7b817d;
+    --accent-watch: #c58a27;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    background-image: linear-gradient(rgba(44, 48, 47, 0.035) 1px, transparent 1px);
+    background-size: 100% 28px;
   }
   header {
-    padding: 2.5rem 1.5rem 1.5rem;
-    max-width: 960px;
+    padding: 3rem 1.5rem 1.75rem;
+    max-width: 1120px;
     margin: 0 auto;
   }
   header h1 {
     margin: 0 0 0.4rem;
-    font-size: 1.75rem;
-    letter-spacing: -0.01em;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    letter-spacing: -0.025em;
   }
   header p {
     margin: 0;
@@ -38,7 +42,7 @@
     font-size: 0.95rem;
   }
   main {
-    max-width: 960px;
+    max-width: 1120px;
     margin: 0 auto;
     padding: 0 1.5rem 3rem;
     display: grid;
@@ -48,8 +52,9 @@
   .card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 6px;
     padding: 1.25rem;
+    box-shadow: 0 8px 20px rgba(72, 65, 49, 0.07);
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
@@ -101,8 +106,8 @@
 </head>
 <body>
   <header>
-    <h1>📉 Suivi de prix</h1>
-    <p>Mis à jour automatiquement par un workflow GitHub Actions programmé — historique et graphiques ci-dessous.</p>
+    <h1>Suivi de prix</h1>
+    <p>Une vue courte de vos alertes : dernier relevé, variation et tendance historique.</p>
   </header>
   <main id="products"></main>
   <p class="empty" id="empty-state" hidden>Aucun produit suivi pour l'instant — le premier run programmé remplira cette page.</p>

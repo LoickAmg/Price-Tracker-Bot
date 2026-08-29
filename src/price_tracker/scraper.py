@@ -10,6 +10,8 @@ supportés — il faudrait un navigateur headless, volontairement hors scope).
 from __future__ import annotations
 
 import re
+import time
+from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
 
 import requests
@@ -24,21 +26,55 @@ _USER_AGENT = (
     "+https://github.com/) personal price tracking, one request per run"
 )
 _TIMEOUT_SECONDS = 15
+_MAX_FETCH_ATTEMPTS = 3
+_RETRY_BACKOFF_SECONDS = 0.5
 
 
 class ScrapeError(Exception):
     """Échec du scraping ou de l'extraction du prix pour un produit donné."""
 
 
-def fetch_html(url: str) -> str:
-    try:
-        response = requests.get(
-            url, headers={"User-Agent": _USER_AGENT}, timeout=_TIMEOUT_SECONDS
-        )
-        response.raise_for_status()
-    except requests.RequestException as exc:
-        raise ScrapeError(f"requête échouée pour {url} : {exc}") from exc
-    return response.text
+def fetch_html(
+    url: str,
+    *,
+    max_attempts: int = _MAX_FETCH_ATTEMPTS,
+    sleep: Callable[[float], None] = time.sleep,
+) -> str:
+    """Fetch a page with bounded retries for transient HTTP/network failures.
+
+    We retry timeouts, connection errors, 429 and 5xx responses only. Permanent
+    client errors fail immediately, and the backoff is capped by the small
+    attempt count so a scheduled run cannot hang indefinitely.
+    """
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+    last_error: requests.RequestException | None = None
+    attempts_made = 0
+    for attempt in range(max_attempts):
+        attempts_made += 1
+        try:
+            response = requests.get(
+                url, headers={"User-Agent": _USER_AGENT}, timeout=_TIMEOUT_SECONDS
+            )
+            if response.status_code == 429 or response.status_code >= 500:
+                last_error = requests.HTTPError(
+                    f"transient HTTP status {response.status_code}", response=response
+                )
+                if attempt == max_attempts - 1:
+                    break
+                sleep(_RETRY_BACKOFF_SECONDS * (2**attempt))
+                continue
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as exc:
+            last_error = exc
+            retryable = isinstance(exc, (requests.Timeout, requests.ConnectionError))
+            if not retryable or attempt == max_attempts - 1:
+                break
+            sleep(_RETRY_BACKOFF_SECONDS * (2**attempt))
+    assert last_error is not None
+    message = f"requête échouée pour {url} après {attempts_made} tentative(s) : {last_error}"
+    raise ScrapeError(message) from last_error
 
 
 def parse_price(text: str) -> Decimal:
