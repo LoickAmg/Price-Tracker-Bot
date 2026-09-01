@@ -14,7 +14,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from price_tracker.config import Product
+from price_tracker.config import TrackingConfig
 
 HistoryData = dict[str, Any]
 
@@ -61,7 +61,7 @@ def save_history(path: str | Path, history: HistoryData) -> None:
 
 def update_history(
     history: HistoryData,
-    product: Product,
+    product: TrackingConfig,
     price: Decimal,
     timestamp: str,
 ) -> PriceChange | None:

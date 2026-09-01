@@ -7,3 +7,6 @@ venv/
 *.egg-info/
 dist/
 build/
+# La banque de stratégies par domaine est un fichier opérationnel local ;
+# en cas de décision de la partager entre machines, la versionner au contraire.
+strategy-bank.json

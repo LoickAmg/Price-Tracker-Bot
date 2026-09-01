@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tableau de bord — Suivi de prix</title>
+<link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="dashboard-top">
+    <h1 class="site-title">Suivi de prix</h1>
+    <p class="lede">Le carnet de bord de vos surveillances : dernier relevé, variation et tendance.</p>
+    <nav class="dashboard-nav" aria-label="Navigation">
+      <a class="active" href="/">Tableau de bord</a>
+      <a href="/ajouter">Ajouter un produit</a>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <div class="grid" id="products"></div>
+    <p class="state" id="empty-state" hidden>
+      Aucun produit suivi pour l'instant. Ouvrez « Ajouter un produit » pour en configurer un.
+    </p>
+    <p class="state" id="error-state" hidden></p>
+  </main>
+
+  <footer class="site-footer">
+    <span>Suivi de prix — carnet de surveillance</span>
+    <nav aria-label="Liens légaux">
+      <a href="/mentions-legales">Mentions légales</a>
+      <a href="/confidentialite">Confidentialité</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </footer>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    async function loadDashboard() {
+      const container = document.getElementById("products");
+      try {
+        const payload = await api("/api/products");
+        if (payload.products.length === 0) {
+          document.getElementById("empty-state").hidden = false;
+          return;
+        }
+        for (const entry of payload.products) {
+          container.appendChild(renderCard(entry));
+        }
+      } catch (err) {
+        onError(document.getElementById("error-state"), err);
+      }
+    }
+
+    function sparkline(history) {
+      if (history.length < 2) return "";
+      const prices = history.map((point) => Number(point.price));
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      const range = max - min || 1;
+      const width = 280;
+      const height = 40;
+      const step = width / (prices.length - 1);
+      const points = prices
+        .map((price, i) => {
+          const x = i * step;
+          const y = height - ((price - min) / range) * height;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        })
+        .join(" ");
+      const color = prices.at(-1) > prices[0] ? "var(--clay)" : "var(--moss)";
+      return `<svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"
+        aria-hidden="true">
+        <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2"
+          stroke-linejoin="round" stroke-linecap="round" />
+      </svg>`;
+    }
+
+    function deltaOf(history) {
+      const current = history.at(-1);
+      const previous = history.at(-2);
+      if (!current || !previous) return "";
+      const diff = Number(current.price) - Number(previous.price);
+      const cls = diff < 0 ? "drop" : diff > 0 ? "rise" : "flat";
+      const sign = diff > 0 ? "+" : "";
+      return `<span class="delta ${cls}">${sign}${diff.toFixed(2)}</span>`;
+    }
+
+    function renderCard(entry) {
+      const history = entry.history_points ?? [];
+      const current = history.at(-1);
+      const price = current ? formatPrice(current.price, entry.currency) : "—";
+      const badge = entry.level === "expert"
+        ? `<span class="badge">${esc(entry.strategy)}</span>` : "";
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <h2><a href="${esc(entry.url)}" target="_blank" rel="noopener">${esc(entry.name)}</a></h2>
+        <div class="price-row">
+          <span class="price">${esc(price)}</span>
+          ${deltaOf(history)}
+          ${badge}
+        </div>
+        ${sparkline(history)}
+        <div class="meta">
+          ${history.length} relevé(s) · dernière vérification : ${formatTime(entry.last_checked)}
+        </div>
+        <div class="card-actions">
+          <a href="/ajouter?produit=${encodeURIComponent(entry.id)}">Configurer</a>
+        </div>`;
+      return card;
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

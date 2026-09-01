@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ajouter un produit — Suivi de prix</title>
+<link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="dashboard-top">
+    <h1 class="site-title">Ajouter un produit</h1>
+    <p class="lede">Collez un lien : le moteur teste réellement l'extraction avant d'enregistrer. Rien n'est écrit sans validation.</p>
+    <nav class="dashboard-nav" aria-label="Navigation">
+      <a href="/">Tableau de bord</a>
+      <a class="active" href="/ajouter">Ajouter un produit</a>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <form class="form-sheet" id="step-entry">
+      <div class="field">
+        <label for="url">Lien du produit</label>
+        <input id="url" name="url" type="url"
+               placeholder="https://boutique.example/produit"
+               inputmode="url" autocomplete="url" required />
+        <p class="hint">Le moteur parcourt la page : JSON-LD, micro-données OpenGraph, sélecteurs connus, puis regex en secours.</p>
+      </div>
+
+      <div class="field">
+        <label for="query">Nom du produit <span style="font-weight:400">(optionnel)</span></label>
+        <input id="query" name="query" type="text" placeholder="ex. « Sony WH-1000XM6 »" />
+      </div>
+
+      <div class="field">
+        <span class="requisite">Niveau de contrôle</span>
+        <div class="radio-grid" id="level-grid">
+          <label class="radio-card selected" data-level="auto">
+            <input type="radio" name="level" value="auto" checked hidden />
+            <span class="radio-label">🪄 Automatique</span>
+            <p class="radio-help">Le moteur s'occupe de tout.</p>
+          </label>
+          <label class="radio-card" data-level="custom">
+            <input type="radio" name="level" value="custom" hidden />
+            <span class="radio-label">🎯 Personnalisé</span>
+            <p class="radio-help">Prix cible, fréquence, validation.</p>
+          </label>
+          <label class="radio-card" data-level="expert">
+            <input type="radio" name="level" value="expert" hidden />
+            <span class="radio-label">🛠️ Expert</span>
+            <p class="radio-help">Stratégie et sélecteurs exposés.</p>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="target">Prix cible <span style="font-weight:400">(alerte sous ce prix)</span></label>
+        <div class="input-row">
+          <input id="target" name="target" type="number" min="0" step="any"
+                 placeholder="laisser vide pour suivre toute baisse" />
+          <span class="input-suffix">€</span>
+        </div>
+        <p class="hint">« Dès qu'il baisse » : toute baisse notable (&gt; 1 %) déclenche l'alerte.</p>
+      </div>
+
+      <div class="field check">
+        <span>📸 Capture d'écran à la résolution — bientôt.</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit" id="btn-continue">Vérifier l'extraction</button>
+      </div>
+    </form>
+
+    <form class="form-sheet" id="step-verify" hidden>
+      <div id="verify-notice" class="notice" hidden></div>
+
+      <div id="verify-summary" hidden>
+        <h2 id="summary-name" style="margin:1.2rem 0 .4rem"></h2>
+        <p class="meta" id="summary-url" style="margin:.2rem 0"></p>
+        <div class="price-row" style="margin:.6rem 0 1rem">
+          <span class="price" id="summary-price"></span>
+          <span class="meta">stratégie <span id="summary-strategy"></span></span>
+        </div>
+      </div>
+
+      <div class="field" id="candidates-field" hidden>
+        <label for="candidates-list">Prix détectés — choisissez celui à surveiller&nbsp;:</label>
+        <ul class="candidates" id="candidates-list"></ul>
+      </div>
+
+      <div id="custom-extra" hidden>
+        <div class="field">
+          <label for="interval">Fréquence de vérification</label>
+          <select id="interval">
+            <option value="6">Toutes les 6 heures</option>
+            <option value="12">Toutes les 12 heures</option>
+            <option value="24">Une fois par jour</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="expert-extra" hidden>
+        <div class="field">
+          <label for="strategy">Stratégie d'extraction</label>
+          <select id="strategy">
+            <option value="auto">auto — re-détection à chaque relevé</option>
+            <option value="jsonld">jsonld — données structurées</option>
+            <option value="css">css — sélecteur CSS</option>
+            <option value="xpath">xpath — expression XPath</option>
+            <option value="regex">regex — expression régulière</option>
+            <option value="browser">browser — rendu JavaScript (Playwright)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="selector">Sélecteur CSS (stratégie « css »)</label>
+          <input id="selector" type="text" placeholder="span.price" />
+        </div>
+        <div class="field">
+          <label for="xpath">XPath (stratégie « xpath »)</label>
+          <input id="xpath" type="text" placeholder='//*[@class="price"]' />
+        </div>
+        <div class="field">
+          <label for="regex">Regex de prix (stratégie « regex »)</label>
+          <input id="regex" type="text" placeholder="\d+,\d{2}" />
+        </div>
+        <div class="input-row">
+          <div class="field">
+            <label for="min-price">Valeur minimale</label>
+            <input id="min-price" type="number" min="0" step="any" placeholder="—" />
+          </div>
+          <div class="field">
+            <label for="max-price">Valeur maximale</label>
+            <input id="max-price" type="number" min="0" step="any" placeholder="—" />
+          </div>
+        </div>
+      </div>
+
+      <details class="playground">
+        <summary>🔧 Tester autrement (Playground)</summary>
+        <div class="field" style="margin-top:.9rem">
+          <label for="pg-url">URL</label>
+          <input id="pg-url" type="url" placeholder="https://…" />
+        </div>
+        <div class="input-row">
+          <div class="field">
+            <label for="pg-strategy">Stratégie</label>
+            <select id="pg-strategy">
+              <option value="auto">auto</option>
+              <option value="jsonld">jsonld</option>
+              <option value="css">css</option>
+              <option value="xpath">xpath</option>
+              <option value="regex">regex</option>
+              <option value="browser">browser (Playwright)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pg-options">Sélecteur / XPath / regex</label>
+            <input id="pg-options" type="text" placeholder="selon la stratégie choisie" />
+          </div>
+        </div>
+        <div class="field check">
+          <input id="pg-browser" type="checkbox" />
+          <label for="pg-browser">Utiliser le navigateur (rendu JavaScript)</label>
+        </div>
+        <div class="actions" style="margin-top:.4rem">
+          <button class="btn secondary" type="button" id="btn-playground">Tester</button>
+        </div>
+        <pre class="telemetry" id="pg-telemetry" hidden></pre>
+        <ul class="candidates" id="pg-results"></ul>
+      </details>
+
+      <div class="actions">
+        <button class="btn secondary" type="button" id="btn-restart">Modifier</button>
+        <button class="btn" type="submit" id="btn-save">Enregistrer</button>
+      </div>
+    </form>
+  </main>
+
+  <footer class="site-footer">
+    <span>Suivi de prix — carnet de surveillance</span>
+    <nav aria-label="Liens légaux">
+      <a href="/mentions-legales">Mentions légales</a>
+      <a href="/confidentialite">Confidentialité</a>
+      <a href="/contact">Contact</a>
+    </nav>
+  </footer>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    const state = {
+      level: "auto",
+      resolved: null,
+      choice: null,
+      name: "",
+      url: "",
+      target: "",
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function setLevel(level) {
+      state.level = level;
+      for (const card of document.querySelectorAll(".radio-card")) {
+        card.classList.toggle("selected", card.dataset.level === level);
+      }
+      $("custom-extra").hidden = level !== "custom";
+      $("expert-extra").hidden = level !== "expert";
+    }
+
+    // --- saisie --------------------------------------------------------------
+
+    $("level-grid").addEventListener("click", (event) => {
+      const card = event.target.closest(".radio-card");
+      if (card) setLevel(card.dataset.level);
+    });
+
+    $("step-entry").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      state.url = $("url").value.trim();
+      state.name = $("query").value.trim();
+      state.target = $("target").value.trim();
+      if (!state.url) return;
+
+      $("btn-continue").disabled = true;
+      const notice = $("verify-notice");
+      notice.hidden = true;
+
+      try {
+        const outcome = await api("/api/resolve", {
+          method: "POST",
+          body: JSON.stringify({
+            url: state.url,
+            query: state.name,
+            target: state.target || null,
+            level: state.level,
+          }),
+        });
+        state.resolved = outcome;
+        state.choice = outcome.candidates.find((c) => c.strategy === outcome.config.strategy)
+          ?? outcome.candidates[0] ?? null;
+        renderVerify();
+      } catch (err) {
+        notice.className = "notice err";
+        onError(notice, err);
+      } finally {
+        $("btn-continue").disabled = false;
+      }
+    });
+
+    $("btn-restart").addEventListener("click", () => {
+      $("step-verify").hidden = true;
+      $("step-entry").hidden = false;
+    });
+
+    // --- vérification ----------------------------------------------------------
+
+    function renderVerify() {
+      const outcome = state.resolved;
+      $("step-entry").hidden = true;
+      $("step-verify").hidden = false;
+      setLevel(state.level);
+
+      const confidence = outcome.confidence;
+      const notice = $("verify-notice");
+      notice.hidden = false;
+      if (confidence >= 0.7) {
+        notice.className = "notice ok";
+        notice.textContent = `✅ Confiance élevée (${Math.round(confidence * 100)} %) — ${outcome.diagnostic}.`;
+      } else if (confidence >= 0.45) {
+        notice.className = "notice warn";
+        notice.textContent = `⚖️ Confiance moyenne (${Math.round(confidence * 100)} %). Vérifiez le prix choisi ci-dessous.`;
+      } else {
+        notice.className = "notice err";
+        notice.textContent = `⚠️ Confiance faible (${Math.round(confidence * 100)} %). Le prix détecté doit être confirmé.`;
+      }
+
+      $("verify-summary").hidden = false;
+      $("summary-name").textContent = outcome.config.name || state.url;
+      $("summary-url").textContent = outcome.config.url;
+      $("summary-strategy").textContent = outcome.config.strategy;
+      $("summary-price").textContent = state.choice
+        ? formatPrice(state.choice.price, "EUR")
+        : "—";
+
+      renderCandidates(outcome.candidates);
+      $("candidates-field").hidden = outcome.candidates.length === 0;
+
+      // pré-remplissage expert
+      const expert = $("expert-extra");
+      if (!expert.hidden) {
+        $("strategy").value = outcome.config.strategy || "auto";
+        prefillExpertFromChoice();
+      }
+      $("pg-url").placeholder = state.url;
+      $("pg-url").value = state.url;
+      if (state.target) {
+        const numeric = state.target.replace(",", ".");
+        $("target").value = numeric;
+      }
+    }
+
+    function prefillExpertFromChoice() {
+      const choice = state.choice;
+      if (!choice) return;
+      if (choice.strategy === "css" && /price/.test(choice.source)) {
+        const match = choice.source.match(/'([^']+)'|"([^"]+)"/);
+        $("selector").placeholder = match ? match[1] || match[2] : "span.price";
+      }
+    }
+
+    function renderCandidates(candidates) {
+      const list = $("candidates-list");
+      list.innerHTML = "";
+      for (const candidate of candidates) {
+        const item = document.createElement("li");
+        item.dataset.price = candidate.price;
+        item.classList.add(state.choice && state.choice.price === candidate.price ? "selected" : "");
+        item.innerHTML = `
+          <span class="candidate-price">${esc(formatPrice(candidate.price, "EUR"))}</span>
+          <span class="candidate-meta">${esc(candidate.strategy)} · conf ${Math.round(candidate.confidence * 100)} % · ${esc(candidate.source)}</span>`;
+        item.addEventListener("click", () => {
+          state.choice = candidate;
+          for (const li of list.children) li.classList.toggle("selected", li === item);
+          $("summary-price").textContent = formatPrice(candidate.price, "EUR");
+          $("summary-strategy").textContent = candidate.strategy;
+          if (!$("expert-extra").hidden) $("strategy").value = candidate.strategy;
+          prefillExpertFromChoice();
+        });
+        list.appendChild(item);
+      }
+    }
+
+    // --- playground ----------------------------------------------------------------
+
+    $("btn-playground").addEventListener("click", async () => {
+      const url = ($("pg-url").value || state.url).trim();
+      if (!url) return;
+      const strategy = $("pg-strategy").value;
+      const option = $("pg-options").value.trim();
+      const payload = {
+        url,
+        strategy,
+        browser: $("pg-browser").checked,
+      };
+      if (option) {
+        if (strategy === "css") payload.selector = option;
+        if (strategy === "xpath") payload.xpath = option;
+        if (strategy === "regex") payload.regex = option;
+      }
+      const telemetry = $("pg-telemetry");
+      const results = $("pg-results");
+      results.innerHTML = "";
+      try {
+        const outcome = await api("/api/extract", { method: "POST", body: JSON.stringify(payload) });
+        telemetry.hidden = false;
+        telemetry.textContent =
+          `statut ${outcome.status_code ?? "—"} · ${outcome.response_time_ms ?? 0} ms · ` +
+          `${outcome.size_bytes ?? 0} o\n${outcome.diagnostic}`;
+        for (const candidate of outcome.candidates) {
+          const item = document.createElement("li");
+          item.innerHTML = `
+            <span class="candidate-price">${esc(formatPrice(candidate.price, "EUR"))}</span>
+            <span class="candidate-meta">${esc(candidate.strategy)} · conf ${Math.round(candidate.confidence * 100)} % · ${esc(candidate.source)}</span>`;
+          item.addEventListener("click", () => {
+            state.choice = candidate;
+            if (!$("expert-extra").hidden) $("strategy").value = candidate.strategy;
+            prefillExpertFromChoice();
+          });
+          results.appendChild(item);
+        }
+      } catch (err) {
+        telemetry.hidden = false;
+        telemetry.textContent = err.message;
+      }
+    });
+
+    // --- enregistrement -----------------------------------------------------------------
+
+    $("step-verify").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const resolved = state.resolved;
+      if (!resolved) return;
+      const level = state.level;
+      const strategy = level === "expert"
+        ? $("strategy").value
+        : (level === "custom" ? resolved.config.strategy : "auto");
+
+      if (level === "expert") {
+        if (strategy === "css" && !$("selector").value.trim()) {
+          $("verify-notice").className = "notice err";
+          $("verify-notice").hidden = false;
+          $("verify-notice").textContent = "Stratégie « css » : préciser le sélecteur CSS.";
+          return;
+        }
+        if (strategy === "xpath" && !$("xpath").value.trim()) {
+          $("verify-notice").className = "notice err";
+          $("verify-notice").hidden = false;
+          $("verify-notice").textContent = "Stratégie « xpath » : préciser l'expression XPath.";
+          return;
+        }
+      }
+
+      const payload = {
+        id: resolved.config.id,
+        name: resolved.config.name,
+        url: resolved.config.url,
+        level,
+        strategy,
+        currency: resolved.config.currency || "EUR",
+        selector: strategy === "css" ? $("selector").value.trim() || null : null,
+        xpath: strategy === "xpath" ? $("xpath").value.trim() || null : null,
+        regex: strategy === "regex" ? $("regex").value.trim() || null : null,
+        min_price: $("min-price").value || null,
+        max_price: $("max-price").value || null,
+        interval_hours: Number($("interval").value || 6),
+        alert: { mode: "price_below", threshold: $("target").value.trim() || null },
+      };
+
+      $("btn-save").disabled = true;
+      $("btn-save").textContent = "Enregistrement…";
+      try {
+        await api("/api/products", { method: "POST", body: JSON.stringify(payload) });
+        window.location.assign("/");
+      } catch (err) {
+        const notice = $("verify-notice");
+        notice.className = "notice err";
+        onError(notice, err);
+      } finally {
+        $("btn-save").disabled = false;
+        $("btn-save").textContent = "Enregistrer";
+      }
+    });
+  </script>
+</body>
+</html>

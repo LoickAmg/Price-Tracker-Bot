@@ -1,7 +1,7 @@
 [project]
 name = "price-tracker-bot"
-version = "0.1.0"
-description = "Bot de suivi de prix : scraping générique (URL + sélecteur CSS), historique versionné dans le repo, notifications Discord/Email, dashboard statique."
+version = "0.2.0"
+description = "Bot de suivi de prix V2 : un moteur, trois niveaux (auto/custom/expert) — intentions, stratégies d'extraction (JSON-LD/CSS/XPath/Regex/navigateur), historique versionné, alertes, dashboard web FastAPI."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -9,10 +9,25 @@ dependencies = [
     "requests>=2.32",
     "beautifulsoup4>=4.12",
     "PyYAML>=6.0",
+    "lxml>=5.2",
 ]
 
 [project.scripts]
 price-tracker = "price_tracker.cli:main"
+
+[project.optional-dependencies]
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+browser = [
+    "playwright>=1.44",
+]
+dev = [
+    "pytest>=8",
+    "ruff>=0.9",
+    "httpx>=0.27",
+]
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
@@ -30,3 +45,7 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+    # FastAPI en avance sur son temps d'installation type : Starlette → httpx2.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:Warning",
+]
