@@ -34,6 +34,20 @@ body {
   flex-direction: column;
 }
 
+/* --------------------------------------------------------- screen reader */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* -------------------------------------------------------------------- top */
 
 .dashboard-top {
@@ -106,18 +120,18 @@ body {
   gap: 0.55rem;
 }
 
-.card h2 {
+.card h3 {
   margin: 0;
   font-size: 1.02rem;
   font-weight: 600;
 }
 
-.card h2 a {
+.card h3 a {
   color: inherit;
   text-decoration: none;
 }
 
-.card h2 a:hover { text-decoration: underline; }
+.card h3 a:hover { text-decoration: underline; }
 
 .price-row {
   display: flex;
@@ -171,6 +185,44 @@ body {
   font-size: 0.85rem;
 }
 
+/* -------------------------------------------------------------- entries */
+
+.entry-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px var(--shadow);
+  padding: 1.3rem 1.4rem 1.5rem;
+  margin-bottom: 1.6rem;
+}
+
+.entry-panel h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+
+.entry-panel .lede {
+  margin: 0 0 0.9rem;
+  color: var(--soft);
+  font-size: 0.9rem;
+}
+
+.entry-form {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.entry-form input {
+  flex: 1;
+  min-width: 260px;
+}
+
+@media (max-width: 560px) {
+  .entry-form .btn { flex: 1; justify-content: center; }
+}
+
 /* -------------------------------------------------------------- messages */
 
 .state {
@@ -215,6 +267,10 @@ body {
   margin-top: 0.25rem;
 }
 
+.field-optional {
+  font-weight: 400;
+}
+
 input[type="text"],
 input[type="url"],
 input[type="number"],
@@ -230,7 +286,7 @@ textarea {
   font-size: 0.92rem;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid var(--moss);
   outline-offset: 1px;
   border-color: var(--moss);
@@ -320,9 +376,16 @@ input:focus, select:focus, textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  min-height: 44px;
+  min-width: 44px;
 }
 
 .btn:hover { background: var(--moss-deep); }
+
+.btn:focus-visible {
+  outline: 2px solid var(--moss-deep);
+  outline-offset: 2px;
+}
 
 .btn.secondary {
   background: transparent;
@@ -354,6 +417,12 @@ input:focus, select:focus, textarea:focus {
   background: var(--card);
   margin-bottom: 0.5rem;
   cursor: pointer;
+  min-height: 44px;
+}
+
+.candidates li:focus-visible {
+  outline: 2px solid var(--moss);
+  outline-offset: 1px;
 }
 
 .candidates li.selected {
@@ -391,6 +460,9 @@ details.playground summary {
   cursor: pointer;
   font-size: 0.92rem;
   font-weight: 600;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 /* ------------------------------------------------------------------ legal */
@@ -458,10 +530,18 @@ details.playground summary {
 .site-footer nav { display: flex; gap: 1.2rem; flex-wrap: wrap; }
 .site-footer a { color: var(--soft); text-decoration: none; }
 .site-footer a:hover { color: var(--ink); text-decoration: underline; }
+.site-footer a:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
+
+/* --------------------------------------------------------- responsive --- */
 
 @media (max-width: 560px) {
   .radio-grid { flex-direction: column; }
   .input-row { flex-direction: column; align-items: stretch; }
   .actions { justify-content: stretch; }
   .actions .btn { flex: 1; justify-content: center; }
+  .grid { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 561px) and (max-width: 900px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
 }

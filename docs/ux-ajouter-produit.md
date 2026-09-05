@@ -296,3 +296,75 @@ par le niveau Expert — l'Automatique reste épuré.
    extraction » dans le mode Expert.
 6. **Page d'erreur propre** (404 + pages légales) : l'écran fait partie d'un
    site complet, pas d'une démo jetable.
+
+---
+
+## 8. Refonte de l'arrivée — le tableau de bord est un point d'entrée
+
+Le prompt « Repenser l'arrivée sur Price Tracker Bot » met l'**ajout
+immédiat d'un produit** au centre. Les changements implémentés :
+
+### 8.1 Flux unifié `index → ajouter`
+
+- Le tableau de bord (`/`) ouvre sur un **champ URL dominant** + bouton
+  **Surveiller** (vérbe d'action, vocabulaire « surveillance »). Un clic
+  redirige vers `/ajouter?url=…` et déclenche la vérification.
+- Le champ est doublé d'un `aria-live` (`#entry-status`) qui annonce aux
+  lecteurs d'écran l'état du tableau de bord.
+- L'écran d'ajout lit `?url=` (`autoStart()`) : en arrivant d'un lien, le
+  formulaire est pré-rempli et la vérification se lance automatiquement.
+- Après **Enregistrer**, l'utilisateur revient sur `/` — le dashboard
+  rafraîchi montre la nouvelle surveillance.
+
+### 8.2 Les 14 états UX
+
+L'écran d'ajout gère explicitement ces états, du formulaire à l'échec :
+
+| # | État | Comportement |
+| --- | --- | --- |
+| 1 | Formulaire URL | Saisie, autofocus, description du moteur. |
+| 2 | Chargement | Bouton désactivé + libellé « Vérification en cours… ». |
+| 3 | Candidat unique | Récap direct, confiance affichée. |
+| 4 | Choix multi-candidats | Liste cliquable, sélection du candidat. |
+| 5 | Récap / preview | Nom, URL, prix, stratégie retenue. |
+| 6 | Prix cible interprété | Transmis à `/api/resolve`, pré-rempli au retour. |
+| 7 | Enregistrement | POST `/api/products`, retour sur `/`. |
+| 8 | Accès expert | Options stratégie/sélecteurs/XPath/regex exposées. |
+| 9 | Usage navigateur | Playground avec `pg-browser` (extraction test sans écriture). |
+| 10 | Doublon | 409 URL déjà suivie → affiché dans `#verify-notice`. |
+| 11 | Échec / page morte | Diagnostic, jamais de config silencieuse. |
+| 12 | Erreur réseau | `onError` dans le notice. |
+| 13 | Timeout | Échec fetch → diagnostic explicite. |
+| 14 | Validation borne | Bornes min/max (Expert) appliquées avant sauvegarde. |
+
+### 8.3 Sécurité backend (web.py)
+
+- **Validation URL** : http/https uniquement, longueur max (2048), hostname
+  requis.
+- **Protection SSRF** : les IPs privées/loopback/link-local ainsi que
+  `localhost`, `127.0.0.1`, `0.0.0.0`, `::1` et `metadata.google.internal`
+  sont rejetées.
+- **Timeouts** : imposés sur toutes les requêtes sortantes (scraper).
+- **Doublons** : détection par URL normalisée (`_normalize_url`) avant
+  création — renvoie 409.
+- **Strategy forcée à `auto`** : la création via `/api/products` n'accepte
+  plus de stratégie arbitraire ; le niveau Expert choisit la stratégie au
+  moment de la résolution, puis `TrackingConfig` est écrite avec la stratégie
+  résolue.
+
+### 8.4 Design anti-générique & accessibilité
+
+- Tokens couleurs/typo uniquement dans `:root` ; aucune valeur hex/rgba
+  ailleurs ; pas de Google Font ni `system-ui` ; aucun emoji dans le HTML.
+- `.sr-only` pour les libellés masqués mais annoncés ; `aria-live="polite"`
+  pour les notices ; `aria-describedby` sur le champ URL.
+- Focus visible `focus-visible` 2 px ; `min-height: 44px` sur boutons et
+  candidats (cibles tactiles) ; responsive trois paliers (mobile / tablette /
+  desktop).
+
+### 8.5 Tests E2E
+
+`tests/test_refonte.py` couvre les 10 familles : affichage des pages,
+navigation unifiée, validation URL (SSRF), erreurs réseau, preview, prix
+cible, doublons, échec d'extraction, design anti-générique, accessibilité.
+Aucun appel réseau réel (tout est mocké), CRUD écrit dans un YAML temporaire.

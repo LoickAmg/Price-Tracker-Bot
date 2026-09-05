@@ -9,7 +9,7 @@
 <body>
   <header class="dashboard-top">
     <h1 class="site-title">Ajouter un produit</h1>
-    <p class="lede">Collez un lien : le moteur teste réellement l'extraction avant d'enregistrer. Rien n'est écrit sans validation.</p>
+    <p class="lede">Collez un lien : le moteur teste l'extraction avant d'enregistrer. Rien n'est écrit sans validation.</p>
     <nav class="dashboard-nav" aria-label="Navigation">
       <a href="/">Tableau de bord</a>
       <a class="active" href="/ajouter">Ajouter un produit</a>
@@ -17,53 +17,52 @@
   </header>
 
   <main class="site-main">
-    <form class="form-sheet" id="step-entry">
+    <form class="form-sheet" id="step-entry" aria-labelledby="entry-title">
+      <h2 id="entry-title" class="sr-only">Entrer le lien du produit</h2>
+
       <div class="field">
         <label for="url">Lien du produit</label>
         <input id="url" name="url" type="url"
                placeholder="https://boutique.example/produit"
-               inputmode="url" autocomplete="url" required />
-        <p class="hint">Le moteur parcourt la page : JSON-LD, micro-données OpenGraph, sélecteurs connus, puis regex en secours.</p>
+               inputmode="url" autocomplete="url" required
+               aria-describedby="url-hint" />
+        <p class="hint" id="url-hint">Le moteur parcourt la page : JSON-LD, micro-données OpenGraph, sélecteurs connus, puis regex en secours.</p>
       </div>
 
       <div class="field">
-        <label for="query">Nom du produit <span style="font-weight:400">(optionnel)</span></label>
-        <input id="query" name="query" type="text" placeholder="ex. « Sony WH-1000XM6 »" />
+        <label for="query">Nom du produit <span class="field-optional">(optionnel)</span></label>
+        <input id="query" name="query" type="text" placeholder="ex. Sony WH-1000XM6" />
       </div>
 
       <div class="field">
-        <span class="requisite">Niveau de contrôle</span>
-        <div class="radio-grid" id="level-grid">
+        <span class="requisite" id="level-label">Niveau de contrôle</span>
+        <div class="radio-grid" id="level-grid" role="radiogroup" aria-labelledby="level-label">
           <label class="radio-card selected" data-level="auto">
             <input type="radio" name="level" value="auto" checked hidden />
-            <span class="radio-label">🪄 Automatique</span>
+            <span class="radio-label">Automatique</span>
             <p class="radio-help">Le moteur s'occupe de tout.</p>
           </label>
           <label class="radio-card" data-level="custom">
             <input type="radio" name="level" value="custom" hidden />
-            <span class="radio-label">🎯 Personnalisé</span>
+            <span class="radio-label">Personnalise</span>
             <p class="radio-help">Prix cible, fréquence, validation.</p>
           </label>
           <label class="radio-card" data-level="expert">
             <input type="radio" name="level" value="expert" hidden />
-            <span class="radio-label">🛠️ Expert</span>
+            <span class="radio-label">Expert</span>
             <p class="radio-help">Stratégie et sélecteurs exposés.</p>
           </label>
         </div>
       </div>
 
       <div class="field">
-        <label for="target">Prix cible <span style="font-weight:400">(alerte sous ce prix)</span></label>
+        <label for="target">Prix cible <span class="field-optional">(alerte sous ce prix)</span></label>
         <div class="input-row">
           <input id="target" name="target" type="number" min="0" step="any"
                  placeholder="laisser vide pour suivre toute baisse" />
-          <span class="input-suffix">€</span>
+          <span class="input-suffix">EUR</span>
         </div>
-        <p class="hint">« Dès qu'il baisse » : toute baisse notable (&gt; 1 %) déclenche l'alerte.</p>
-      </div>
-
-      <div class="field check">
-        <span>📸 Capture d'écran à la résolution — bientôt.</span>
+        <p class="hint">Des que le prix baisse de plus de 1%, l'alerte se déclenche.</p>
       </div>
 
       <div class="actions">
@@ -71,20 +70,22 @@
       </div>
     </form>
 
-    <form class="form-sheet" id="step-verify" hidden>
-      <div id="verify-notice" class="notice" hidden></div>
+    <form class="form-sheet" id="step-verify" hidden aria-labelledby="verify-title">
+      <h2 id="verify-title" class="sr-only">Vérifier et enregistrer</h2>
+
+      <div id="verify-notice" class="notice" role="status" aria-live="polite" hidden></div>
 
       <div id="verify-summary" hidden>
-        <h2 id="summary-name" style="margin:1.2rem 0 .4rem"></h2>
-        <p class="meta" id="summary-url" style="margin:.2rem 0"></p>
-        <div class="price-row" style="margin:.6rem 0 1rem">
+        <h3 id="summary-name"></h3>
+        <p class="meta" id="summary-url"></p>
+        <div class="price-row">
           <span class="price" id="summary-price"></span>
           <span class="meta">stratégie <span id="summary-strategy"></span></span>
         </div>
       </div>
 
       <div class="field" id="candidates-field" hidden>
-        <label for="candidates-list">Prix détectés — choisissez celui à surveiller&nbsp;:</label>
+        <label for="candidates-list">Prix détectés — choisissez celui à surveiller :</label>
         <ul class="candidates" id="candidates-list"></ul>
       </div>
 
@@ -126,20 +127,20 @@
         <div class="input-row">
           <div class="field">
             <label for="min-price">Valeur minimale</label>
-            <input id="min-price" type="number" min="0" step="any" placeholder="—" />
+            <input id="min-price" type="number" min="0" step="any" placeholder="---" />
           </div>
           <div class="field">
             <label for="max-price">Valeur maximale</label>
-            <input id="max-price" type="number" min="0" step="any" placeholder="—" />
+            <input id="max-price" type="number" min="0" step="any" placeholder="---" />
           </div>
         </div>
       </div>
 
       <details class="playground">
-        <summary>🔧 Tester autrement (Playground)</summary>
+        <summary>Tester autrement (Playground)</summary>
         <div class="field" style="margin-top:.9rem">
           <label for="pg-url">URL</label>
-          <input id="pg-url" type="url" placeholder="https://…" />
+          <input id="pg-url" type="url" placeholder="https://..." />
         </div>
         <div class="input-row">
           <div class="field">
@@ -165,7 +166,7 @@
         <div class="actions" style="margin-top:.4rem">
           <button class="btn secondary" type="button" id="btn-playground">Tester</button>
         </div>
-        <pre class="telemetry" id="pg-telemetry" hidden></pre>
+        <pre class="telemetry" id="pg-telemetry" hidden aria-live="polite"></pre>
         <ul class="candidates" id="pg-results"></ul>
       </details>
 
@@ -207,7 +208,7 @@
       $("expert-extra").hidden = level !== "expert";
     }
 
-    // --- saisie --------------------------------------------------------------
+    // --- saisie ----------------------------------------------------------
 
     $("level-grid").addEventListener("click", (event) => {
       const card = event.target.closest(".radio-card");
@@ -222,6 +223,7 @@
       if (!state.url) return;
 
       $("btn-continue").disabled = true;
+      $("btn-continue").textContent = "Vérification en cours...";
       const notice = $("verify-notice");
       notice.hidden = true;
 
@@ -241,18 +243,21 @@
         renderVerify();
       } catch (err) {
         notice.className = "notice err";
+        notice.hidden = false;
         onError(notice, err);
       } finally {
         $("btn-continue").disabled = false;
+        $("btn-continue").textContent = "Vérifier l'extraction";
       }
     });
 
     $("btn-restart").addEventListener("click", () => {
       $("step-verify").hidden = true;
       $("step-entry").hidden = false;
+      $("url").focus();
     });
 
-    // --- vérification ----------------------------------------------------------
+    // --- vérification ----------------------------------------------------
 
     function renderVerify() {
       const outcome = state.resolved;
@@ -265,13 +270,13 @@
       notice.hidden = false;
       if (confidence >= 0.7) {
         notice.className = "notice ok";
-        notice.textContent = `✅ Confiance élevée (${Math.round(confidence * 100)} %) — ${outcome.diagnostic}.`;
+        notice.textContent = `Confiance elevee (${Math.round(confidence * 100)} %) — ${outcome.diagnostic}.`;
       } else if (confidence >= 0.45) {
         notice.className = "notice warn";
-        notice.textContent = `⚖️ Confiance moyenne (${Math.round(confidence * 100)} %). Vérifiez le prix choisi ci-dessous.`;
+        notice.textContent = `Confiance moyenne (${Math.round(confidence * 100)} %). Verifiez le prix choisi ci-dessous.`;
       } else {
         notice.className = "notice err";
-        notice.textContent = `⚠️ Confiance faible (${Math.round(confidence * 100)} %). Le prix détecté doit être confirmé.`;
+        notice.textContent = `Confiance faible (${Math.round(confidence * 100)} %). Le prix detecte doit être confirme.`;
       }
 
       $("verify-summary").hidden = false;
@@ -280,12 +285,11 @@
       $("summary-strategy").textContent = outcome.config.strategy;
       $("summary-price").textContent = state.choice
         ? formatPrice(state.choice.price, "EUR")
-        : "—";
+        : "---";
 
       renderCandidates(outcome.candidates);
       $("candidates-field").hidden = outcome.candidates.length === 0;
 
-      // pré-remplissage expert
       const expert = $("expert-extra");
       if (!expert.hidden) {
         $("strategy").value = outcome.config.strategy || "auto";
@@ -297,6 +301,7 @@
         const numeric = state.target.replace(",", ".");
         $("target").value = numeric;
       }
+      $("btn-save").focus();
     }
 
     function prefillExpertFromChoice() {
@@ -330,7 +335,7 @@
       }
     }
 
-    // --- playground ----------------------------------------------------------------
+    // --- playground -------------------------------------------------------
 
     $("btn-playground").addEventListener("click", async () => {
       const url = ($("pg-url").value || state.url).trim();
@@ -350,11 +355,13 @@
       const telemetry = $("pg-telemetry");
       const results = $("pg-results");
       results.innerHTML = "";
+      $("btn-playground").disabled = true;
+      $("btn-playground").textContent = "Test en cours...";
       try {
         const outcome = await api("/api/extract", { method: "POST", body: JSON.stringify(payload) });
         telemetry.hidden = false;
         telemetry.textContent =
-          `statut ${outcome.status_code ?? "—"} · ${outcome.response_time_ms ?? 0} ms · ` +
+          `statut ${outcome.status_code ?? "---"} · ${outcome.response_time_ms ?? 0} ms · ` +
           `${outcome.size_bytes ?? 0} o\n${outcome.diagnostic}`;
         for (const candidate of outcome.candidates) {
           const item = document.createElement("li");
@@ -371,10 +378,11 @@
       } catch (err) {
         telemetry.hidden = false;
         telemetry.textContent = err.message;
+      } finally {
+        $("btn-playground").disabled = false;
+        $("btn-playground").textContent = "Tester";
       }
     });
-
-    // --- enregistrement -----------------------------------------------------------------
 
     $("step-verify").addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -387,15 +395,11 @@
 
       if (level === "expert") {
         if (strategy === "css" && !$("selector").value.trim()) {
-          $("verify-notice").className = "notice err";
-          $("verify-notice").hidden = false;
-          $("verify-notice").textContent = "Stratégie « css » : préciser le sélecteur CSS.";
+          showNotice("err", "Strategie css : preciser le selecteur CSS.");
           return;
         }
         if (strategy === "xpath" && !$("xpath").value.trim()) {
-          $("verify-notice").className = "notice err";
-          $("verify-notice").hidden = false;
-          $("verify-notice").textContent = "Stratégie « xpath » : préciser l'expression XPath.";
+          showNotice("err", "Strategie xpath : preciser l'expression XPath.");
           return;
         }
       }
@@ -417,19 +421,38 @@
       };
 
       $("btn-save").disabled = true;
-      $("btn-save").textContent = "Enregistrement…";
+      $("btn-save").textContent = "Enregistrement...";
       try {
         await api("/api/products", { method: "POST", body: JSON.stringify(payload) });
         window.location.assign("/");
       } catch (err) {
-        const notice = $("verify-notice");
-        notice.className = "notice err";
-        onError(notice, err);
+        showNotice("err", err.message);
       } finally {
         $("btn-save").disabled = false;
         $("btn-save").textContent = "Enregistrer";
       }
     });
+
+    function showNotice(kind, message) {
+      const notice = $("verify-notice");
+      notice.className = "notice " + kind;
+      notice.hidden = false;
+      notice.textContent = message;
+    }
+
+    // --- arrivée pré-remplie (champ rapide du tableau de bord) ------------
+
+    function autoStart() {
+      const params = new URLSearchParams(window.location.search);
+      const url = params.get("url");
+      if (!url) return;
+      $("url").value = url;
+      if (params.get("level")) setLevel(params.get("level"));
+      if (params.get("target")) $("target").value = params.get("target");
+      $("btn-continue").click();
+    }
+
+    autoStart();
   </script>
 </body>
 </html>

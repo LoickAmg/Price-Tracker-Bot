@@ -84,7 +84,8 @@ Absentes, elles ne bloquent jamais un run.
 
 ## Web (interface FastAPI)
 
-- `/` — tableau de bord : derniers relevés, variation, tendance, badge
+- `/` — tableau de bord : **champ d'entrée rapide** pour coller un produit à
+  suivre dès l'arrivée, puis derniers relevés, variation, tendance, badge
   stratégie (niveau Expert uniquement) ;
 - `/ajouter` — écran « Ajouter un produit » : résolution, confiance, choix du
   candidat, Playground ;
@@ -98,7 +99,12 @@ personnaliser avant mise en production.
 **Identité visuelle** : papier crème (`--paper`), Georgia serif pour la
 lecture, mono pour les relevés ; toutes les couleurs déclarées comme variables
 dans `:root` (aucun hex/rgba ailleurs), pas de grille ni dégradé décoratif,
-aucune Google Font, aucun build.
+aucune Google Font, aucun build, pas d'emojis.
+
+**Sécurité du web** : les URLs sont validées (http/https uniquement, longueur
+max) et un garde-fou SSRF bloque les hôtes privés/loopback/localhost ; les
+doublons sont détectés par URL normalisée ; la stratégie est forcée à `auto`
+à la création via l'API publique (`/api/products`).
 
 ## Déploiement
 

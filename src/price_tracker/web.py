@@ -7,13 +7,22 @@ Routes :
 
 Politique d'écriture : tout ce qui crée une TrackingConfig passe par le YAML ;
 rien n'est écrit sans validation (mêmes règles que le CLI).
+
+Sécurité :
+- Validation URL : http/https uniquement, longueur max, pas d'IPs privées.
+- SSRF : protection contre les requêtes vers des hôtes privés/loopback.
+- Timeouts : imposés sur toutes les requêtes sortantes.
+- Doublons : détection par URL normalisée avant création.
+- Strategy : forcée à auto pour la création via API publique.
 """
 
 from __future__ import annotations
 
+import ipaddress
 import os
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
@@ -45,6 +54,7 @@ WEB_DIR = Path(
     )
 )
 
+_MAX_URL_LENGTH = 2048
 _LEVELS = {"auto": Level.AUTO, "custom": Level.CUSTOM, "expert": Level.EXPERT}
 _ALERTS = {
     "price_below": AlertMode.PRICE_BELOW,
@@ -62,6 +72,40 @@ def _to_decimal(value, field: str) -> Decimal | None:
         raise HTTPException(422, f"{field} : valeur décimale invalide {value!r}") from exc
 
 
+def _validate_url(url: str) -> str:
+    """Valide et normalise une URL. Lève HTTPException si invalide."""
+    url = url.strip()
+    if not url:
+        raise HTTPException(422, "url requise")
+    if len(url) > _MAX_URL_LENGTH:
+        raise HTTPException(422, f"URL trop longue ({len(url)} caractères, max {_MAX_URL_LENGTH})")
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(422, "seules les URLs http/https sont acceptées")
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise HTTPException(422, "hostname manquant dans l'URL")
+
+    _check_private_host(hostname)
+    return url
+
+
+def _check_private_host(hostname: str) -> None:
+    """Vérifie que l'hôte n'est pas une IP privée/loopback (protection SSRF)."""
+    try:
+        addr = ipaddress.ip_address(hostname)
+        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+            raise HTTPException(422, "les URLs vers des hôtes privés ne sont pas acceptées")
+    except ValueError:
+        pass  # ce n'est pas une IP, c'est un domaine — OK
+
+    blocked = ("localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal")
+    if hostname.lower() in blocked:
+        raise HTTPException(422, "cet hôte n'est pas autorisé")
+
+
 def _config_dict(config: TrackingConfig) -> dict:
     return config.to_dict()
 
@@ -76,6 +120,18 @@ def _product_view(config: TrackingConfig, history) -> dict:
         "last_checked": entry.get("last_checked") if entry else None,
         "history_points": history_points,
     }
+
+
+def _normalize_url(url: str) -> str:
+    """Normalise une URL pour la comparaison de doublons."""
+    parsed = urlparse(url.strip())
+    scheme = parsed.scheme.lower()
+    netloc = parsed.netloc.lower().removeprefix("www.")
+    path = parsed.path.rstrip("/")
+    query = parsed.query
+    if query:
+        return f"{scheme}://{netloc}{path}?{query}"
+    return f"{scheme}://{netloc}{path}"
 
 
 def create_app(
@@ -137,9 +193,7 @@ def create_app(
 
     @app.post("/api/resolve")
     def api_resolve(body: dict) -> JSONResponse:
-        url = str(body.get("url") or "")
-        if not url.startswith(("http://", "https://")):
-            raise HTTPException(422, "url manquante ou invalide")
+        url = _validate_url(str(body.get("url") or ""))
 
         target = _to_decimal(body.get("target"), "target")
         level = _LEVELS.get(str(body.get("level") or "auto"), Level.AUTO)
@@ -177,9 +231,7 @@ def create_app(
 
     @app.post("/api/extract")
     def api_extract(body: dict) -> dict:
-        url = str(body.get("url") or "")
-        if not url.startswith(("http://", "https://")):
-            raise HTTPException(422, "url manquante ou invalide")
+        url = _validate_url(str(body.get("url") or ""))
         try:
             strategy = Strategy(str(body.get("strategy") or "auto"))
         except ValueError as exc:
@@ -239,17 +291,29 @@ def create_app(
     def api_create_product(body: dict) -> dict:
         configs = _read_configs()
         product_id = str(body.get("id") or "").strip()
+
+        url = _validate_url(str(body.get("url") or ""))
+
+        # Détection de doublons par URL normalisée
+        normalized = _normalize_url(url)
+        for existing in configs:
+            if _normalize_url(existing.url) == normalized:
+                raise HTTPException(
+                    409,
+                    f"ce produit est déjà suivi : {existing.name} ({existing.id})",
+                )
+
         if existing := _find(configs, product_id):
             raise HTTPException(409, f"id déjà utilisé : {existing.id}")
 
         try:
-            strategy = Strategy(str(body.get("strategy") or "auto"))
+            strategy = Strategy.AUTO
             level = _LEVELS.get(str(body.get("level") or "auto"), Level.AUTO)
             alert_mode = _ALERTS.get(str((body.get("alert") or {}).get("mode") or "price_below"))
             config = TrackingConfig(
-                id=product_id or _next_id(configs, str(body.get("url") or "produit")),
+                id=product_id or _next_id(configs, url),
                 name=str(body.get("name") or product_id or "produit"),
-                url=str(body.get("url") or ""),
+                url=url,
                 level=level,
                 strategy=strategy,
                 currency=str(body.get("currency") or "EUR"),

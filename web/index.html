@@ -3,23 +3,37 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tableau de bord — Suivi de prix</title>
+<title>Suivi de prix</title>
 <link rel="stylesheet" href="/assets/style.css" />
 </head>
 <body>
   <header class="dashboard-top">
-    <h1 class="site-title">Suivi de prix</h1>
-    <p class="lede">Le carnet de bord de vos surveillances : dernier relevé, variation et tendance.</p>
+    <h1 class="site-title">Surveiller un prix</h1>
+    <p class="lede">Collez le lien du produit, le moteur teste l'extraction, vous validez.</p>
     <nav class="dashboard-nav" aria-label="Navigation">
       <a class="active" href="/">Tableau de bord</a>
-      <a href="/ajouter">Ajouter un produit</a>
     </nav>
   </header>
 
   <main class="site-main">
+    <section class="entry-panel" aria-labelledby="entry-heading">
+      <h2 id="entry-heading" class="sr-only">Ajouter un produit</h2>
+      <form class="entry-form" id="quick-add" aria-describedby="entry-hint">
+        <label for="quick-url" class="sr-only">Lien du produit à suivre</label>
+        <input id="quick-url" type="url" required spellcheck="false"
+               placeholder="https://boutique.example/produit"
+               aria-describedby="entry-hint"
+               autocomplete="url" autofocus />
+        <button class="btn" type="submit">Surveiller</button>
+      </form>
+      <p class="hint" id="entry-hint">Le moteur parcourt la page : JSON-LD, micro-données, sélecteurs connus, puis regex en secours.</p>
+    </section>
+
+    <div aria-live="polite" id="entry-status" class="sr-only"></div>
+
     <div class="grid" id="products"></div>
     <p class="state" id="empty-state" hidden>
-      Aucun produit suivi pour l'instant. Ouvrez « Ajouter un produit » pour en configurer un.
+      Aucun produit suivi. Collez un lien ci-dessus pour commencer.
     </p>
     <p class="state" id="error-state" hidden></p>
   </main>
@@ -37,12 +51,15 @@
   <script>
     async function loadDashboard() {
       const container = document.getElementById("products");
+      const status = document.getElementById("entry-status");
       try {
         const payload = await api("/api/products");
         if (payload.products.length === 0) {
           document.getElementById("empty-state").hidden = false;
+          status.textContent = "Aucun produit suivi.";
           return;
         }
+        status.textContent = payload.products.length + " produit(s) suivi(s).";
         for (const entry of payload.products) {
           container.appendChild(renderCard(entry));
         }
@@ -88,13 +105,13 @@
     function renderCard(entry) {
       const history = entry.history_points ?? [];
       const current = history.at(-1);
-      const price = current ? formatPrice(current.price, entry.currency) : "—";
+      const price = current ? formatPrice(current.price, entry.currency) : "---";
       const badge = entry.level === "expert"
         ? `<span class="badge">${esc(entry.strategy)}</span>` : "";
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `
-        <h2><a href="${esc(entry.url)}" target="_blank" rel="noopener">${esc(entry.name)}</a></h2>
+        <h3><a href="${esc(entry.url)}" target="_blank" rel="noopener">${esc(entry.name)}</a></h3>
         <div class="price-row">
           <span class="price">${esc(price)}</span>
           ${deltaOf(history)}
@@ -102,13 +119,20 @@
         </div>
         ${sparkline(history)}
         <div class="meta">
-          ${history.length} relevé(s) · dernière vérification : ${formatTime(entry.last_checked)}
+          ${history.length} relevé(s) · derniere vérification : ${formatTime(entry.last_checked)}
         </div>
         <div class="card-actions">
           <a href="/ajouter?produit=${encodeURIComponent(entry.id)}">Configurer</a>
         </div>`;
       return card;
     }
+
+    document.getElementById("quick-add").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const url = document.getElementById("quick-url").value.trim();
+      if (!url) return;
+      window.location.assign(`/ajouter?url=${encodeURIComponent(url)}`);
+    });
 
     loadDashboard();
   </script>
