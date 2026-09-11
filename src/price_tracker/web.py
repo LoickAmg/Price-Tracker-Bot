@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import socket
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import urlparse
@@ -92,18 +93,61 @@ def _validate_url(url: str) -> str:
     return url
 
 
+def _is_disallowed_ip(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_reserved
+        or addr.is_multicast
+    )
+
+
 def _check_private_host(hostname: str) -> None:
-    """Vérifie que l'hôte n'est pas une IP privée/loopback (protection SSRF)."""
+    """Vérifie que l'hôte n'est pas une IP privée/loopback/lien-local (protection SSRF).
+
+    Vérifie à la fois l'hôte littéral (une IP directement dans l'URL) et les
+    IP obtenues par résolution DNS du nom d'hôte : un domaine public tout à
+    fait légitime peut pointer vers une IP privée ou l'adresse de métadonnées
+    cloud (169.254.169.254), ce qu'une simple liste de noms bloqués ne
+    détecte pas — c'est exactement le contournement qu'une vérification sur
+    la seule IP littérale laisse passer.
+
+    Si la résolution DNS échoue (domaine inexistant, DNS indisponible), on
+    laisse passer : la requête sortante échouera de toute façon plus tard,
+    ce n'est pas un risque de sécurité en soi et ça évite de bloquer les
+    domaines de test qui ne résolvent pas réellement (ex. TLD `.test`).
+
+    Limite connue, non traitée ici : le DNS rebinding (l'hôte pourrait
+    résoudre différemment entre cette vérification et la requête HTTP
+    réelle) — hors de portée d'une simple validation d'URL côté API.
+    """
     try:
         addr = ipaddress.ip_address(hostname)
-        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+        if _is_disallowed_ip(addr):
             raise HTTPException(422, "les URLs vers des hôtes privés ne sont pas acceptées")
+        return
     except ValueError:
-        pass  # ce n'est pas une IP, c'est un domaine — OK
+        pass  # ce n'est pas une IP littérale, c'est un nom d'hôte
 
-    blocked = ("localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal")
+    blocked = ("localhost", "0.0.0.0", "metadata.google.internal")
     if hostname.lower() in blocked:
         raise HTTPException(422, "cet hôte n'est pas autorisé")
+
+    try:
+        resolved = socket.getaddrinfo(hostname, None)
+    except OSError:
+        return  # résolution impossible : rien à vérifier, l'appel échouera plus tard
+
+    for _family, _type, _proto, _canonname, sockaddr in resolved:
+        try:
+            addr = ipaddress.ip_address(sockaddr[0])
+        except ValueError:
+            continue
+        if _is_disallowed_ip(addr):
+            raise HTTPException(
+                422, "les URLs vers des hôtes privés ne sont pas acceptées (résolution DNS)"
+            )
 
 
 def _config_dict(config: TrackingConfig) -> dict:

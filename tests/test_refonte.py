@@ -145,6 +145,29 @@ class TestSSRFProtection:
             response = client.post("/api/resolve", json={"url": "https://store.test/livre-deux"})
         assert response.status_code == 200
 
+    def test_domain_resolving_to_a_private_ip_is_rejected(self, client):
+        """Un domaine public peut pointer vers une IP privée ou l'adresse de
+        métadonnées cloud — la protection doit suivre la résolution DNS, pas
+        seulement la forme littérale de l'URL."""
+        fake_resolution = [(2, 1, 6, "", ("169.254.169.254", 0))]
+        with patch("price_tracker.web.socket.getaddrinfo", return_value=fake_resolution):
+            response = client.post(
+                "/api/resolve", json={"url": "http://looks-public.example/admin"}
+            )
+        assert response.status_code == 422
+        assert "privés" in response.json()["detail"]
+
+    def test_domain_that_fails_to_resolve_is_not_blocked_by_dns_check(self, client):
+        """Un domaine qui ne résout pas du tout (DNS indisponible, TLD de
+        test) ne doit pas être bloqué par la vérification DNS elle-même —
+        seule la requête sortante réelle échouera, plus tard."""
+        with patch("price_tracker.web.socket.getaddrinfo", side_effect=OSError("no DNS")):
+            with patch("price_tracker.web.resolve_intent", return_value=_resolved()):
+                response = client.post(
+                    "/api/resolve", json={"url": "https://unresolvable.example/x"}
+                )
+        assert response.status_code == 200
+
 
 # --- 4. Gestion erreurs réseau ---------------------------------------------
 
