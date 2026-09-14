@@ -75,6 +75,7 @@ class ExtractionResult:
     status_code: int | None = None
     response_time_ms: int | None = None
     size_bytes: int | None = None
+    product_name: str = ""
 
     @property
     def best(self) -> Candidate | None:
@@ -385,6 +386,47 @@ def _looks_like_suggestion(text: str) -> bool:
     return any(word in lowered for word in _PRICE_STOPWORDS)
 
 
+def extract_product_name(html: str) -> str:
+    """Extrait le nom du produit depuis la page (JSON-LD > OpenGraph > <title>)."""
+    soup = _soup(html)
+
+    # 1. JSON-LD : chercher un objet Product avec un champ "name"
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or script.get_text())
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for node in _walk_jsonld(data):
+            if isinstance(node, dict) and node.get("@type") in (
+                "Product", "IndividualProduct", "Vehicle",
+            ):
+                name = node.get("name")
+                if isinstance(name, str) and name.strip():
+                    return name.strip()
+
+    # 2. OpenGraph : og:title ou product:name
+    for prop in ("og:title", "product:name"):
+        meta = soup.find("meta", property=prop)
+        if meta and meta.get("content"):
+            title = meta["content"].strip()
+            if title:
+                return title
+
+    # 3. <title> tag : nettoyer les séparateurs courants
+    title_tag = soup.find("title")
+    if title_tag and title_tag.string:
+        raw = title_tag.string.strip()
+        # Couper sur les séparateurs courants (|, -, –, —)
+        for sep in (" | ", " – ", " — ", " - ", "|", "–", "—"):
+            if sep in raw:
+                raw = raw.split(sep)[0].strip()
+                break
+        if raw:
+            return raw
+
+    return ""
+
+
 def auto_extract(html: str, url: str) -> list[Candidate]:
     """Détection automatique : JSON-LD → OpenGraph → heuristiques CSS → regex.
 
@@ -451,6 +493,8 @@ def test_extraction(
         return ExtractionResult(url=url, diagnostic=str(exc), status_code=None)
     elapsed = int((time.perf_counter() - start) * 1000)
 
+    product_name = extract_product_name(html)
+
     try:
         if strategy == Strategy.AUTO:
             candidates = auto_extract(html, url)
@@ -487,6 +531,7 @@ def test_extraction(
         status_code=status,
         response_time_ms=elapsed,
         size_bytes=len(html),
+        product_name=product_name,
     )
 
 

@@ -271,6 +271,7 @@ def create_app(
             "confidence": resolved.confidence,
             "candidates": candidates,
             "diagnostic": resolved.diagnostic,
+            "product_name": resolved.config.name,
         }
 
     @app.post("/api/extract")

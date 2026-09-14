@@ -9,7 +9,7 @@ from price_tracker.scraper import Candidate
 
 def fake_extraction(url, strategy, **kwargs):
     candidates = [Candidate(Decimal("899.00"), Strategy.JSONLD, 0.92, "JSON-LD")]
-    return type("R", (), {"candidates": candidates, "diagnostic": "ok", "best": candidates[0]})()
+    return type("R", (), {"candidates": candidates, "diagnostic": "ok", "best": candidates[0], "product_name": ""})()
 
 
 def stub_network(monkeypatch):

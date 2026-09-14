@@ -152,8 +152,12 @@ def resolve_intent(
     else:
         locked = Strategy.AUTO
 
-    # Nom par défaut : domaine + prix, sinon la description fournie.
-    name = intent.query.strip() or f"{domain} · {best.price}"
+    # Nom par défaut : nom extrait de la page > query utilisateur > domaine + prix
+    name = (
+        result.product_name.strip()
+        or intent.query.strip()
+        or f"{domain} · {best.price}"
+    )
     config = TrackingConfig(
         id=_dedupe_id(slugify(name), existing_ids),
         name=name,
