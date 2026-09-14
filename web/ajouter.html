@@ -319,7 +319,7 @@
       for (const candidate of candidates) {
         const item = document.createElement("li");
         item.dataset.price = candidate.price;
-        item.classList.add(state.choice && state.choice.price === candidate.price ? "selected" : "");
+        item.classList.toggle("selected", !!(state.choice && state.choice.price === candidate.price));
         item.innerHTML = `
           <span class="candidate-price">${esc(formatPrice(candidate.price, "EUR"))}</span>
           <span class="candidate-meta">${esc(candidate.strategy)} · conf ${Math.round(candidate.confidence * 100)} % · ${esc(candidate.source)}</span>`;
