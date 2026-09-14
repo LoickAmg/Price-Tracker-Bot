@@ -21,7 +21,9 @@ async function api(path, options = {}) {
 
 function formatTime(iso) {
   if (!iso) return "jamais";
-  return new Date(iso).toLocaleString("fr-FR");
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "jamais";
+  return d.toLocaleString("fr-FR");
 }
 
 function esc(value) {
@@ -29,7 +31,8 @@ function esc(value) {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function onError(target, err) {

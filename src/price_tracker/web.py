@@ -13,7 +13,7 @@ Sécurité :
 - SSRF : protection contre les requêtes vers des hôtes privés/loopback.
 - Timeouts : imposés sur toutes les requêtes sortantes.
 - Doublons : détection par URL normalisée avant création.
-- Strategy : forcée à auto pour la création via API publique.
+- Strategy : acceptée du body, fallback auto si invalide.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ from price_tracker.config import (
     load_configs,
     save_configs,
 )
-from price_tracker.history import load_history
+from price_tracker.history import load_history, save_history
 from price_tracker.resolver import ResolveError, StrategyBank, resolve_intent
 from price_tracker.scraper import test_extraction
 
@@ -186,7 +186,7 @@ def create_app(
     app = FastAPI(title="Price Tracker V2", version="0.2.0")
 
     if WEB_DIR.exists():
-        app.mount("/assets", StaticFiles(directory=WEB_DIR), name="assets")
+        app.mount("/assets", StaticFiles(directory=WEB_DIR, html=False), name="assets")
 
     def _read_configs() -> list[TrackingConfig]:
         if not config_path.exists():
@@ -352,7 +352,11 @@ def create_app(
             raise HTTPException(409, f"id déjà utilisé : {existing.id}")
 
         try:
-            strategy = Strategy.AUTO
+            raw_strategy = str(body.get("strategy") or "auto")
+            try:
+                strategy = Strategy(raw_strategy)
+            except ValueError:
+                strategy = Strategy.AUTO
             level = _LEVELS.get(str(body.get("level") or "auto"), Level.AUTO)
             alert_mode = _ALERTS.get(str((body.get("alert") or {}).get("mode") or "price_below"))
             config = TrackingConfig(
@@ -389,6 +393,11 @@ def create_app(
         if len(remaining) == len(configs):
             raise HTTPException(404, f"produit inconnu : {product_id}")
         _save_configs(remaining)
+        # Nettoyer l'historique du produit supprimé
+        history = load_history(history_path)
+        if product_id in history:
+            del history[product_id]
+            save_history(history_path, history)
         return {"deleted": product_id}
 
     return app

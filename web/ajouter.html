@@ -402,6 +402,10 @@
           showNotice("err", "Strategie xpath : preciser l'expression XPath.");
           return;
         }
+        if (strategy === "regex" && !$("regex").value.trim()) {
+          showNotice("err", "Strategie regex : preciser l'expression reguliere.");
+          return;
+        }
       }
 
       const payload = {

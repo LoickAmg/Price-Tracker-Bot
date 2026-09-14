@@ -122,7 +122,7 @@
           ${history.length} relevé(s) · derniere vérification : ${formatTime(entry.last_checked)}
         </div>
         <div class="card-actions">
-          <a href="/ajouter?produit=${encodeURIComponent(entry.id)}">Configurer</a>
+          <a href="/ajouter?url=${encodeURIComponent(entry.url)}">Configurer</a>
         </div>`;
       return card;
     }
