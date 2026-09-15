@@ -504,9 +504,13 @@ def test_extraction(
                 for _, p, source in extract_jsonld(html)
             ]
         elif strategy == Strategy.CSS:
-            candidates = extract_css(html, selector or "") if selector else []
+            if not selector:
+                raise ScrapeError("Strategie CSS : aucun selecteur fourni")
+            candidates = extract_css(html, selector)
         elif strategy == Strategy.XPATH:
-            candidates = extract_xpath(html, xpath or "") if xpath else []
+            if not xpath:
+                raise ScrapeError("Strategie XPATH : aucune expression fournie")
+            candidates = extract_xpath(html, xpath)
         elif strategy == Strategy.REGEX:
             candidates = extract_regex(html, regex)
         elif strategy == Strategy.BROWSER:

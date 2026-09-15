@@ -186,7 +186,17 @@ def create_app(
     app = FastAPI(title="Price Tracker V2", version="0.2.0")
 
     if WEB_DIR.exists():
-        app.mount("/assets", StaticFiles(directory=WEB_DIR, html=False), name="assets")
+        from starlette.middleware.base import BaseHTTPMiddleware
+
+        class BlockHtmlAssets(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                if request.url.path.startswith("/assets/") and request.url.path.endswith(".html"):
+                    from starlette.responses import PlainTextResponse
+                    return PlainTextResponse("Not found", status_code=404)
+                return await call_next(request)
+
+        app.add_middleware(BlockHtmlAssets)
+        app.mount("/assets", StaticFiles(directory=WEB_DIR), name="assets")
 
     def _read_configs() -> list[TrackingConfig]:
         if not config_path.exists():
@@ -242,12 +252,13 @@ def create_app(
         target = _to_decimal(body.get("target"), "target")
         level = _LEVELS.get(str(body.get("level") or "auto"), Level.AUTO)
         query = str(body.get("query") or "")
+        alert_mode = _ALERTS.get(str(body.get("alert_mode") or "price_below"))
 
         intent = ProductIntent(
             query=query,
             url=url,
             target_price=target,
-            alert_mode=AlertMode.PRICE_BELOW,
+            alert_mode=alert_mode,
             level=level,
         )
         bank = StrategyBank(bank_path)
@@ -410,7 +421,11 @@ def _find(configs: list[TrackingConfig], product_id: str) -> TrackingConfig | No
 def _next_id(configs: list[TrackingConfig], seed: str) -> str:
     from price_tracker.resolver import slugify
 
-    base = slugify(seed.removeprefix("https://").removeprefix("http://").split("/")[0])
+    stripped = seed.removeprefix("https://").removeprefix("http://")
+    parts = stripped.split("/", 2)
+    # domain + premier segment de path pour des IDs plus explicites
+    slug_seed = parts[0] if len(parts) < 2 else f"{parts[0]}/{parts[1]}"
+    base = slugify(slug_seed)
     candidate, counter = base, 1
     existing = {c.id for c in configs}
     while candidate in existing:

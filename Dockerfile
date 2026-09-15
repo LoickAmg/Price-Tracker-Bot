@@ -14,7 +14,7 @@ FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PT_WEB_DIR=/app/web \
-    HOST=127.0.0.1 \
+    HOST=0.0.0.0 \
     PORT=8030
 
 WORKDIR /data

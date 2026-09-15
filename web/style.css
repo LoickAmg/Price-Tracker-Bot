@@ -16,6 +16,7 @@
   --ochre: #ab7f29;
   --clay: #a5573e;
   --iron: #5f6661;
+  --btn-text: #fdf9ee;
   --shadow: rgba(64, 57, 42, 0.08);
   --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
   --mono: "SFMono-Regular", "Cascadia Mono", Consolas, "Courier New", monospace;
@@ -184,6 +185,18 @@ body {
   color: var(--moss-deep);
   font-size: 0.85rem;
 }
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: var(--clay);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+.btn-delete:hover { text-decoration: underline; }
 
 /* -------------------------------------------------------------- entries */
 
@@ -370,7 +383,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   border-radius: 4px;
   border: 1px solid var(--moss);
   background: var(--moss);
-  color: #fdf9ee;
+  color: var(--btn-text);
   cursor: pointer;
   text-decoration: none;
   display: inline-flex;

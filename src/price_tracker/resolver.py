@@ -81,12 +81,6 @@ class StrategyBank:
         except (KeyError, ValueError):
             return None
 
-    def best_candidate(self, candidates) -> object | None:
-        """Candidat le plus confiant parmi une liste de Candidate."""
-        if not candidates:
-            return None
-        return max(candidates, key=lambda c: (c.confidence, c.strategy.value))
-
 
 def slugify(text: str) -> str:
     """Produit un id lisible à partir d'un nom de produit."""

@@ -52,6 +52,9 @@
     async function loadDashboard() {
       const container = document.getElementById("products");
       const status = document.getElementById("entry-status");
+      document.getElementById("error-state").hidden = true;
+      document.getElementById("empty-state").hidden = true;
+      container.innerHTML = "";
       try {
         const payload = await api("/api/products");
         if (payload.products.length === 0) {
@@ -123,7 +126,15 @@
         </div>
         <div class="card-actions">
           <a href="/ajouter?url=${encodeURIComponent(entry.url)}">Configurer</a>
+          <button class="btn-delete" data-id="${esc(entry.id)}" data-name="${esc(entry.name)}">Supprimer</button>
         </div>`;
+      card.querySelector(".btn-delete").addEventListener("click", async () => {
+        if (!confirm("Supprimer " + entry.name + " ?")) return;
+        await api("/api/products/" + encodeURIComponent(entry.id), { method: "DELETE" });
+        card.remove();
+        const remaining = document.getElementById("products").children.length;
+        if (remaining === 0) document.getElementById("empty-state").hidden = false;
+      });
       return card;
     }
 
