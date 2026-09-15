@@ -68,7 +68,6 @@ _FALLBACK_RATES: dict[str, dict[str, float]] = {
         "BGN": 1.96,
         "HRK": 7.46,
         "ISK": 150.0,
-        "PHP": 61.00,
     },
     "USD": {
         "EUR": 0.93,
@@ -118,7 +117,6 @@ _FALLBACK_RATES: dict[str, dict[str, float]] = {
         "BGN": 1.81,
         "HRK": 6.90,
         "ISK": 139.0,
-        "PHP": 56.50,
     },
 }
 

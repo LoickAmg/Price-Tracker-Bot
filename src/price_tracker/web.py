@@ -278,6 +278,7 @@ def create_app(
     @app.post("/api/convert")
     def api_convert(body: dict) -> dict:
         from decimal import Decimal as D
+
         from price_tracker.converter import get_converter
 
         amount = body.get("amount")
