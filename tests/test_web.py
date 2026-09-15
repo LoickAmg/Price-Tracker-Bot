@@ -75,6 +75,11 @@ class TestPages:
         for path in ("/assets/style.css", "/assets/app.js"):
             assert client.get(path).status_code == 200, path
 
+    def test_assets_html_blocked(self, client):
+        """HTML files under /assets/ should return 404 (XSS prevention)."""
+        for path in ("/assets/index.html", "/assets/ajouter.html"):
+            assert client.get(path).status_code == 404, path
+
 
 class TestApiHealth:
     def test_health(self, client):

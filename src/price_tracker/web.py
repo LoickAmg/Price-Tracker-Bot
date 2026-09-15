@@ -252,13 +252,12 @@ def create_app(
         target = _to_decimal(body.get("target"), "target")
         level = _LEVELS.get(str(body.get("level") or "auto"), Level.AUTO)
         query = str(body.get("query") or "")
-        alert_mode = _ALERTS.get(str(body.get("alert_mode") or "price_below"))
 
         intent = ProductIntent(
             query=query,
             url=url,
             target_price=target,
-            alert_mode=alert_mode,
+            alert_mode=AlertMode.PRICE_BELOW,
             level=level,
         )
         bank = StrategyBank(bank_path)

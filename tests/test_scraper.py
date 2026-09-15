@@ -164,6 +164,36 @@ class TestAutoExtract:
     def test_empty_html_produces_no_candidates(self):
         assert auto_extract("<html><body></body></html>", "https://x.test/") == []
 
+    def test_strikethrough_price_filtered(self):
+        """Prix dans <del> ou avec classe old-price sont exclus."""
+        html = """
+        <html><body>
+          <span class="price">379.99</span>
+          <del><span class="price">429.99</span></del>
+          <span class="price old-price">459.99</span>
+        </body></html>
+        """
+        candidates = auto_extract(html, "https://store.test/p/1")
+        prices = [c.price for c in candidates]
+        assert Decimal("379.99") in prices
+        assert Decimal("429.99") not in prices
+        assert Decimal("459.99") not in prices
+
+    def test_recommendation_price_filtered(self):
+        """Prix dans une section 'recommandé/similaire' est exclu."""
+        html = """
+        <html><body>
+          <span class="price">379.99</span>
+          <div class="recommend">
+            <span class="price">89.99</span>
+          </div>
+        </body></html>
+        """
+        candidates = auto_extract(html, "https://store.test/p/1")
+        prices = [c.price for c in candidates]
+        assert Decimal("379.99") in prices
+        assert Decimal("89.99") not in prices
+
 
 class TestTestExtraction:
     def test_css_strategy_dispatch(self, monkeypatch):

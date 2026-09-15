@@ -48,7 +48,17 @@ _HEURISTIC_SELECTORS = (
 # Expression par défaut : nombre décimal à 1-2 décimales (optionnel).
 _DEFAULT_REGEX = r"\d[\d\s\u00a0]*(?:[.,]\d{1,2})?"
 
-_PRICE_STOPWORDS = ("abonnement", "subscription", "par mois", "/mois", "/month")
+_PRICE_STOPWORDS = (
+    "abonnement", "subscription", "par mois", "/mois", "/month",
+    "recommandé", "recommandés", "similar", "similaires",
+    "voir aussi", "voir egalement", "autres produits", "alternatives",
+    "you may also", "related", "autres articles",
+)
+
+_RECOMMEND_CLASSES = re.compile(
+    r"(recommend|similar|related|suggestion|voir-aussi|cross-sell|upsell|complement)",
+    re.IGNORECASE,
+)
 
 _OLD_PRICE_CLASSES = re.compile(
     r"(old|was|prev|ancien|barre|strike|crossed|removed|superseded)",
@@ -372,6 +382,15 @@ def _is_strikethrough_price(element) -> bool:
     return False
 
 
+def _is_in_recommendation_section(element) -> bool:
+    """Detecte les prix dans des sections produits recommandés / similaires."""
+    for parent in element.parents:
+        classes = " ".join(parent.get("class", []))
+        if _RECOMMEND_CLASSES.search(classes):
+            return True
+    return False
+
+
 def _heuristic_candidates(html: str, url: str) -> list[Candidate]:
     """Collecte les candidats depuis des sélecteurs courants (mode Auto)."""
     soup = _soup(html)
@@ -382,6 +401,8 @@ def _heuristic_candidates(html: str, url: str) -> list[Candidate]:
             continue  # traité par extract_opengraph
         for element in soup.select(selector)[:3]:
             if _is_strikethrough_price(element):
+                continue
+            if _is_in_recommendation_section(element):
                 continue
             text = element.get_text(" ", strip=True)
             if not text or _looks_like_suggestion(text):

@@ -148,6 +148,15 @@
   </footer>
 
   <script>
+    function esc(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
     async function loadHistory() {
       try {
         const response = await fetch("./data/price-history.json", { cache: "no-store" });
@@ -209,7 +218,7 @@
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `
-        <h2><a href="${data.url}" target="_blank" rel="noopener">${data.name ?? id}</a></h2>
+        <h2><a href="${esc(data.url)}" target="_blank" rel="noopener">${esc(data.name ?? id)}</a></h2>
         <div class="price-row">${priceHtml}${deltaHtml}</div>
         ${buildSparkline(history)}
         <div class="meta">${history.length} relevé(s) · dernière vérification : ${checked}</div>
