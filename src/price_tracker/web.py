@@ -185,6 +185,29 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(title="Price Tracker V2", version="0.2.0")
 
+    # --- Bearer token protection (optionnel) ---
+    import os
+
+    api_token = os.environ.get("PT_API_TOKEN", "").strip()
+
+    if api_token:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        from starlette.responses import JSONResponse
+
+        class RequireToken(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                # Protéger uniquement les routes d'écriture
+                if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+                    auth = request.headers.get("Authorization", "")
+                    if auth != f"Bearer {api_token}":
+                        return JSONResponse(
+                            {"detail": "token manquant ou invalide"},
+                            status_code=401,
+                        )
+                return await call_next(request)
+
+        app.add_middleware(RequireToken)
+
     if WEB_DIR.exists():
         from starlette.middleware.base import BaseHTTPMiddleware
 

@@ -139,11 +139,24 @@ def _cmd_run(args: argparse.Namespace) -> int:
         save_history(args.history, history)
 
     drops = [c for c in changes if c.is_drop]
-    if drops and not args.dry_run:
-        sent = notify_all(drops)
+    suspicious = [c for c in drops if c.is_suspicious]
+    real_drops = [c for c in drops if not c.is_suspicious]
+
+    # Avertir sur les changements suspects
+    for s in suspicious:
+        logger.warning(
+            "SUSPECT : %s — baisse de %.0f%% (%s → %s) — pas de notification",
+            s.name,
+            (s.drop_pct or 0),
+            s.previous,
+            s.current,
+        )
+
+    if real_drops and not args.dry_run:
+        sent = notify_all(real_drops)
         logger.info("Notifications envoyées : %s", sent)
-    elif drops:
-        for drop in drops:
+    elif real_drops:
+        for drop in real_drops:
             logger.info("Baisse détectée (non notifiée, --dry-run) : %s", drop.name)
 
     if errors:

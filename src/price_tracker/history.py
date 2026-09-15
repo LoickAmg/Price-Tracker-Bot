@@ -38,6 +38,32 @@ class PriceChange:
     def is_drop(self) -> bool:
         return self.previous is not None and self.current < self.previous
 
+    @property
+    def is_suspicious(self) -> bool:
+        """Un changement suspect : chute > 50% ou prix < 1€.
+
+        Ces changements ne doivent PAS déclencher de notification car ils
+        indiquent souvent un changement de DOM ou une erreur d'extraction.
+        """
+        if self.previous is None:
+            return False
+        # Prix absurde
+        if self.current < Decimal("1"):
+            return True
+        # Chute massive > 50%
+        if self.previous > Decimal("0"):
+            drop_pct = (self.previous - self.current) / self.previous
+            if drop_pct > Decimal("0.50"):
+                return True
+        return False
+
+    @property
+    def drop_pct(self) -> float | None:
+        """Pourcentage de baisse (positif = baisse). None si pas de prix précédent."""
+        if self.previous is None or self.previous == 0:
+            return None
+        return float((self.previous - self.current) / self.previous * 100)
+
 
 def load_history(path: str | Path) -> HistoryData:
     p = Path(path)

@@ -82,6 +82,11 @@ dès qu'un secret existant est configuré dans l'environnement du cron GitHub
 Actions (`DISCORD_WEBHOOK_URL`, `SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD`, …).
 Absentes, elles ne bloquent jamais un run.
 
+**Validation de cohérence** : les baisses de prix suspectes (> 50% d'un coup
+ou prix < 1€) sont marquées comme « suspectes » et ne déclenchent pas de
+notification. Elles apparaissent dans les logs avec un avertissement, car elles
+indiquent souvent un changement de structure du site cible.
+
 ## Web (interface FastAPI)
 
 - `/` — tableau de bord : **champ d'entrée rapide** pour coller un produit à
@@ -104,7 +109,9 @@ aucune Google Font, aucun build, pas d'emojis.
 **Sécurité du web** : les URLs sont validées (http/https uniquement, longueur
 max) et un garde-fou SSRF bloque les hôtes privés/loopback/localhost ; les
 doublons sont détectés par URL normalisée ; la stratégie est forcée à `auto`
-à la création via l'API publique (`/api/products`).
+à la création via l'API publique (`/api/products`). Si le serveur est exposé
+sur internet, définissez la variable `PT_API_TOKEN` pour protéger les routes
+d'écriture (POST/DELETE) avec un Bearer token.
 
 ## Déploiement
 
@@ -145,3 +152,27 @@ Vérifiez le `robots.txt` et les conditions d'utilisation du site avant de
 l'ajouter, et n'augmentez pas trop la fréquence du cron : ce projet est pensé
 pour un usage personnel, respectueux des sites suivis. Les notifications sont
 des effets externes — jamais de webhook ni mot de passe versionné.
+
+## Limites connues
+
+- **Cloudflare / CAPTCHA avancé** : les sites protégés par Cloudflare Bot
+  Management ou des CAPTCHA complexes bloquent le scraping HTTP. Solution :
+  utiliser la stratégie `browser` (Playwright) ou un proxy résidentiel.
+- **Prix chargés en JavaScript** : si le prix n'est présent que dans le DOM
+  rendu par JS (pas dans le HTML brut), seule la stratégie `browser` fonctionne.
+  Les sélecteurs CSS et XPath échoueront silencieusement.
+- **Amazon** : les pages produit Amazon sont lourdement JS-rendered. Le JSON-LD
+  est souvent absent du HTML initial. La détection automatique utilise un
+  fallback URL (slug du path) pour le nom du produit, et la regex en secours
+  pour le prix.
+- **Changements de DOM** : si un site modifie ses classes CSS ou sa structure,
+  une stratégie CSS/XPth peut devenir obsolète. Le système de validation
+  détecte les baisses suspectes (> 50%) et les marque comme suspects au lieu
+  de notifier.
+- **Limites GitHub Actions** : le plan gratuit offre 2 000 minutes/mois.
+  Chaque run Playwright consomme ~1-2 minutes. Pour plusieurs produits avec
+  navigateur, préférez le scraping HTTP simple ou augmentez la fréquence à
+  12-24h au lieu de 6h.
+- **Conversion de devise** : les taux de change proviennent de l'API gratuite
+  open.er-api.com (mise à jour horaire). En cas d'indisponibilité, des taux
+  fixes approximatifs sont utilisés en secours.
