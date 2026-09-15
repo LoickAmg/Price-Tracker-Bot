@@ -192,6 +192,7 @@ def create_app(
             async def dispatch(self, request, call_next):
                 if request.url.path.startswith("/assets/") and request.url.path.endswith(".html"):
                     from starlette.responses import PlainTextResponse
+
                     return PlainTextResponse("Not found", status_code=404)
                 return await call_next(request)
 

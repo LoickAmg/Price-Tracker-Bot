@@ -49,10 +49,22 @@ _HEURISTIC_SELECTORS = (
 _DEFAULT_REGEX = r"\d[\d\s\u00a0]*(?:[.,]\d{1,2})?"
 
 _PRICE_STOPWORDS = (
-    "abonnement", "subscription", "par mois", "/mois", "/month",
-    "recommandé", "recommandés", "similar", "similaires",
-    "voir aussi", "voir egalement", "autres produits", "alternatives",
-    "you may also", "related", "autres articles",
+    "abonnement",
+    "subscription",
+    "par mois",
+    "/mois",
+    "/month",
+    "recommandé",
+    "recommandés",
+    "similar",
+    "similaires",
+    "voir aussi",
+    "voir egalement",
+    "autres produits",
+    "alternatives",
+    "you may also",
+    "related",
+    "autres articles",
 )
 
 _RECOMMEND_CLASSES = re.compile(
@@ -384,6 +396,11 @@ def _is_strikethrough_price(element) -> bool:
 
 def _is_in_recommendation_section(element) -> bool:
     """Detecte les prix dans des sections produits recommandés / similaires."""
+    # Vérifier les classes de l'élément lui-même
+    classes = " ".join(element.get("class", []))
+    if _RECOMMEND_CLASSES.search(classes):
+        return True
+    # Vérifier les parents
     for parent in element.parents:
         classes = " ".join(parent.get("class", []))
         if _RECOMMEND_CLASSES.search(classes):
@@ -442,7 +459,9 @@ def extract_product_name(html: str) -> str:
             continue
         for node in _walk_jsonld(data):
             if isinstance(node, dict) and node.get("@type") in (
-                "Product", "IndividualProduct", "Vehicle",
+                "Product",
+                "IndividualProduct",
+                "Vehicle",
             ):
                 name = node.get("name")
                 if isinstance(name, str) and name.strip():
