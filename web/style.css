@@ -147,6 +147,13 @@ body {
   font-weight: 700;
 }
 
+.converted {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--soft);
+  font-weight: 400;
+}
+
 .delta { font-family: var(--mono); font-size: 0.85rem; font-weight: 600; }
 .delta.drop { color: var(--moss); }
 .delta.rise { color: var(--clay); }

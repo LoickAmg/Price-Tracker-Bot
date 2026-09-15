@@ -107,6 +107,39 @@
             <option value="both">Discord + Email</option>
           </select>
         </div>
+        <div class="field">
+          <label for="display-currency">Afficher le prix en</label>
+          <select id="display-currency">
+            <option value="">Meme devise que le site</option>
+            <option value="EUR">EUR — Euro</option>
+            <option value="USD">USD — Dollar américain</option>
+            <option value="GBP">GBP — Livre sterling</option>
+            <option value="CHF">CHF — Franc suisse</option>
+            <option value="CAD">CAD — Dollar canadien</option>
+            <option value="JPY">JPY — Yen japonais</option>
+            <option value="CNY">CNY — Yuan chinois</option>
+            <option value="XOF">XOF — Franc CFA (UEMOA)</option>
+            <option value="XAF">XAF — Franc CFA (CEMAC)</option>
+            <option value="NGN">NGN — Naira nigérian</option>
+            <option value="KES">KES — Shilling kényan</option>
+            <option value="ZAR">ZAR — Rand sud-africain</option>
+            <option value="BRL">BRL — Réal brésilien</option>
+            <option value="INR">INR — Roupie indienne</option>
+            <option value="KRW">KRW — Won sud-coréen</option>
+            <option value="MXN">MXN — Peso mexicain</option>
+            <option value="PLN">PLN — Zloty polonais</option>
+            <option value="SEK">SEK — Couronne suédoise</option>
+            <option value="NOK">NOK — Couronne norvégienne</option>
+            <option value="DKK">DKK — Couronne danoise</option>
+            <option value="TRY">TRY — Lire turque</option>
+            <option value="THB">THB — Baht thaïlandais</option>
+            <option value="SGD">SGD — Dollar de Singapour</option>
+            <option value="MAD">MAD — Dirham marocain</option>
+            <option value="TND">TND — Dinar tunisien</option>
+            <option value="DZD">DZD — Dinar algérien</option>
+            <option value="EGP">EGP — Livre égyptienne</option>
+          </select>
+        </div>
       </div>
 
       <div id="expert-extra" hidden>
@@ -432,6 +465,7 @@
         interval_hours: Number($("interval").value || 6),
         alert: { mode: "price_below", threshold: $("target").value.trim() || null },
         notify_via: $("notify-via").value || "none",
+        display_currency: $("display-currency").value || "",
       };
 
       $("btn-save").disabled = true;

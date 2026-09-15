@@ -111,12 +111,16 @@
       const price = current ? formatPrice(current.price, entry.currency) : "---";
       const badge = entry.level === "expert"
         ? `<span class="badge">${esc(entry.strategy)}</span>` : "";
+      const convertedSpan = entry.display_currency && current
+        ? `<span class="converted" id="converted-${esc(entry.id)}"></span>`
+        : "";
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `
         <h3><a href="${esc(entry.url)}" target="_blank" rel="noopener">${esc(entry.name)}</a></h3>
         <div class="price-row">
           <span class="price">${esc(price)}</span>
+          ${convertedSpan}
           ${deltaOf(history)}
           ${badge}
         </div>
@@ -135,7 +139,22 @@
         const remaining = document.getElementById("products").children.length;
         if (remaining === 0) document.getElementById("empty-state").hidden = false;
       });
+      // Charger la conversion si display_currency est défini
+      if (entry.display_currency && current) {
+        loadConversion(entry.id, current.price, entry.currency, entry.display_currency);
+      }
       return card;
+    }
+
+    async function loadConversion(id, amount, from, to) {
+      try {
+        const result = await api("/api/convert", {
+          method: "POST",
+          body: JSON.stringify({ amount, from, to }),
+        });
+        const el = document.getElementById("converted-" + id);
+        if (el) el.textContent = "(" + formatPrice(result.converted, to) + ")";
+      } catch (_) { /* silencieux */ }
     }
 
     document.getElementById("quick-add").addEventListener("submit", (event) => {

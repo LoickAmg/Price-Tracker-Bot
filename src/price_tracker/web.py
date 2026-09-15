@@ -246,6 +246,39 @@ def create_app(
     def health() -> dict:
         return {"ok": True}
 
+    @app.get("/api/currencies")
+    def api_currencies() -> dict:
+        from price_tracker.converter import SUPPORTED_CURRENCIES
+
+        return {"currencies": SUPPORTED_CURRENCIES}
+
+    @app.post("/api/convert")
+    def api_convert(body: dict) -> dict:
+        from decimal import Decimal as D
+        from price_tracker.converter import get_converter
+
+        amount = body.get("amount")
+        from_cur = str(body.get("from") or "EUR").upper()
+        to_cur = str(body.get("to") or "USD").upper()
+        if amount is None:
+            raise HTTPException(422, "champ 'amount' obligatoire")
+        try:
+            amount_d = D(str(amount))
+        except Exception as exc:
+            raise HTTPException(422, f"montant invalide : {exc}") from exc
+        converter = get_converter()
+        result = converter.convert(amount_d, from_cur, to_cur)
+        if result is None:
+            raise HTTPException(422, f"conversion impossible : {from_cur} → {to_cur}")
+        rate = converter.get_rate(from_cur, to_cur)
+        return {
+            "from": from_cur,
+            "to": to_cur,
+            "amount": str(amount_d),
+            "converted": str(result),
+            "rate": str(rate) if rate else None,
+        }
+
     @app.post("/api/resolve")
     def api_resolve(body: dict) -> JSONResponse:
         url = _validate_url(str(body.get("url") or ""))
@@ -390,6 +423,7 @@ def create_app(
                 ),
                 interval_hours=int(body.get("interval_hours") or 6),
                 notify_via=str(body.get("notify_via") or "none"),
+                display_currency=str(body.get("display_currency") or ""),
             )
         except ConfigError as exc:
             raise HTTPException(422, str(exc)) from exc

@@ -34,13 +34,41 @@ _RETRY_BACKOFF_SECONDS = 0.5
 # Sélecteurs CSS couramment utilisés par les boutiques en ligne, dans l'ordre
 # de confiance décroissante (itemprop > classes "price" explicites > listes).
 _HEURISTIC_SELECTORS = (
+    # Microdata / Schema.org
     '[itemprop="price"]',
+    # Attributs data custom
     "[data-price]",
+    "[data-product-price]",
+    "[data-store-price]",
+    # OpenGraph (skipped in heuristic pass — handled by extract_opengraph)
     "meta[property='product:price:amount']",
+    # Amazon
+    ".a-price .a-offscreen",
+    ".a-price-whole",
+    # Shopify
+    ".product__price",
+    ".price-item--regular",
+    ".price-item--sale",
+    ".price__regular .money",
+    ".price__sale .money",
+    # WooCommerce
+    ".price ins bdi",
+    ".woocommerce-Price-amount",
+    ".price ins .amount",
+    # Etsy
+    "[data-buy-box-region] .wt-text-title-0",
+    ".wt-text-title-0.wt-text-clamp-2",
+    # eBay
+    ".x-price-primary",
+    ".prcIsum",
+    ".prcIsumLow",
+    # Booking / travel
+    ".bui-price-display__value",
+    "[data-testid='price-and-discounted-price']",
+    # Générique
     "span.price_color",
     "span.price",
     "div.price",
-    ".a-price .a-offscreen",
     "p.price",
     "[class*='price']",
 )
@@ -278,22 +306,83 @@ def _offers_from(node: dict) -> list[tuple[object, str]]:
 
 
 def extract_opengraph(html: str, url: str) -> list[Candidate]:
+    """Extrait le prix depuis les meta tags OpenGraph / product."""
     soup = _soup(html)
-    meta = soup.find("meta", property="product:price:amount")
-    if meta is None:
-        return []
-    try:
-        price = parse_price(meta.get("content", ""))
-    except ScrapeError:
-        return []
-    return [
-        Candidate(
-            price=price,
-            strategy=Strategy.AUTO,
-            confidence=0.8,
-            source="OpenGraph product:price:amount",
-        )
+    candidates: list[Candidate] = []
+    seen: set[Decimal] = set()
+
+    # Meta tags à tester, (property, confidence, label)
+    og_tags = [
+        ("product:price:amount", 0.80, "OpenGraph product:price:amount"),
+        ("og:price:amount", 0.78, "OpenGraph og:price:amount"),
+        ("product:price:currencyCode", 0.0, ""),  # currency only, skip
+        ("og:price:currency", 0.0, ""),  # currency only, skip
     ]
+
+    for prop, confidence, label in og_tags:
+        if confidence == 0:
+            continue
+        meta = soup.find("meta", property=prop)
+        if meta is None:
+            continue
+        try:
+            price = parse_price(meta.get("content", ""))
+        except ScrapeError:
+            continue
+        if price in seen:
+            continue
+        seen.add(price)
+        candidates.append(
+            Candidate(price=price, strategy=Strategy.AUTO, confidence=confidence, source=label)
+        )
+
+    return candidates
+
+
+def extract_microdata(html: str) -> list[tuple[str, Decimal, str]]:
+    """Extrait les prix depuis les microdata Schema.org (itemscope Product).
+
+    Renvoie (currency, prix, source) — même format que extract_jsonld.
+    """
+    soup = _soup(html)
+    found: list[tuple[str, Decimal, str]] = []
+
+    # Chercher les éléments avec itemscope contenant itemtype Product
+    for scope in soup.find_all(attrs={"itemscope": True}):
+        itemtype = scope.get("itemtype", "")
+        if "Product" not in itemtype:
+            continue
+
+        # Chercher itemprop="price" dans le scope
+        price_el = scope.find(attrs={"itemprop": "price"})
+        if price_el is None:
+            continue
+
+        # Prix depuis l'attribut content, value, ou texte
+        raw_price = (
+            price_el.get("content") or price_el.get("value") or price_el.get_text(strip=True)
+        )
+        if not raw_price:
+            continue
+
+        # Devise depuis itemprop="priceCurrency"
+        currency = "EUR"
+        currency_el = scope.find(attrs={"itemprop": "priceCurrency"})
+        if currency_el:
+            currency = (
+                currency_el.get("content")
+                or currency_el.get("value")
+                or currency_el.get_text(strip=True)
+                or "EUR"
+            )
+
+        try:
+            price = parse_price(raw_price)
+        except ScrapeError:
+            continue
+        found.append((currency, price, "Microdata Product"))
+
+    return found
 
 
 def extract_css(html: str, selector: str) -> list[Candidate]:
@@ -421,11 +510,20 @@ def _heuristic_candidates(html: str, url: str) -> list[Candidate]:
                 continue
             if _is_in_recommendation_section(element):
                 continue
-            text = element.get_text(" ", strip=True)
-            if not text or _looks_like_suggestion(text):
+
+            # Priorité : attribut data-price > content > texte
+            raw_price = (
+                element.get("data-price")
+                or element.get("data-product-price")
+                or element.get("data-store-price")
+                or element.get("content")
+                or element.get("value")
+                or element.get_text(" ", strip=True)
+            )
+            if not raw_price or _looks_like_suggestion(raw_price):
                 continue
             try:
-                price = parse_price(text)
+                price = parse_price(raw_price)
             except ScrapeError:
                 continue
             if price in seen:
@@ -524,12 +622,15 @@ def _name_from_url(url: str) -> str:
     """Extrait un nom lisible depuis l'URL (slug du path)."""
     try:
         from urllib.parse import urlparse
+
         parsed = urlparse(url)
         path = parsed.path.strip("/")
         if not path:
             return ""
         # Prendre le premier segment significatif du path
-        segments = [s for s in path.split("/") if s and not s.startswith("dp") and not s.startswith("ref")]
+        segments = [
+            s for s in path.split("/") if s and not s.startswith("dp") and not s.startswith("ref")
+        ]
         if not segments:
             return ""
         slug = segments[0]
@@ -544,20 +645,29 @@ def _name_from_url(url: str) -> str:
 
 
 def auto_extract(html: str, url: str) -> list[Candidate]:
-    """Détection automatique : JSON-LD → OpenGraph → heuristiques CSS → regex.
+    """Détection automatique : JSON-LD → Microdata → OpenGraph → CSS → regex (secours).
 
     Ordre et pondération : JSON-LD est le plus fiable, la regex brute est
-    systématiquement en queue (et filtrée ici, elle reste utilisée par le
-    Playground comme candidat à part).
+    le dernier recours en mode AUTO (plus en secours uniquement).
     """
     candidates: list[Candidate] = []
 
+    # 1. JSON-LD (le plus fiable)
     for _currency, price, source in extract_jsonld(html):
         candidates.append(
             Candidate(price=price, strategy=Strategy.JSONLD, confidence=0.92, source=source)
         )
 
+    # 2. Microdata Schema.org
+    for _currency, price, source in extract_microdata(html):
+        candidates.append(
+            Candidate(price=price, strategy=Strategy.JSONLD, confidence=0.88, source=source)
+        )
+
+    # 3. OpenGraph
     candidates.extend(extract_opengraph(html, url))
+
+    # 4. Heuristiques CSS
     candidates.extend(_heuristic_candidates(html, url))
 
     # Dédoublonnage par prix : garde le candidat le plus confiant.
@@ -566,6 +676,15 @@ def auto_extract(html: str, url: str) -> list[Candidate]:
         if candidate.price not in best_by_price:
             best_by_price[candidate.price] = candidate
     deduped = list(best_by_price.values())
+
+    # 5. Regex en secours si aucun candidat trouvé
+    if not deduped:
+        try:
+            regex_candidates = extract_regex(html, None, base_conf=0.40)
+            deduped = regex_candidates
+        except ScrapeError:
+            pass
+
     return deduped
 
 
