@@ -447,8 +447,8 @@ def _looks_like_suggestion(text: str) -> bool:
     return any(word in lowered for word in _PRICE_STOPWORDS)
 
 
-def extract_product_name(html: str) -> str:
-    """Extrait le nom du produit depuis la page (JSON-LD > OpenGraph > <title>)."""
+def extract_product_name(html: str, url: str = "") -> str:
+    """Extrait le nom du produit depuis la page (JSON-LD > OpenGraph > <title> > URL)."""
     soup = _soup(html)
 
     # 1. JSON-LD : chercher un objet Product avec un champ "name"
@@ -467,27 +467,80 @@ def extract_product_name(html: str) -> str:
                 if isinstance(name, str) and name.strip():
                     return name.strip()
 
-    # 2. OpenGraph : og:title ou product:name
+    # 2. OpenGraph : og:title, product:name
     for prop in ("og:title", "product:name"):
         meta = soup.find("meta", property=prop)
         if meta and meta.get("content"):
             title = meta["content"].strip()
             if title:
-                return title
+                return _clean_product_title(title)
 
     # 3. <title> tag : nettoyer les séparateurs courants
     title_tag = soup.find("title")
     if title_tag and title_tag.string:
         raw = title_tag.string.strip()
-        # Couper sur les séparateurs courants (|, -, –, —)
-        for sep in (" | ", " – ", " — ", " - ", "|", "–", "—"):
-            if sep in raw:
-                raw = raw.split(sep)[0].strip()
-                break
-        if raw:
-            return raw
+        cleaned = _clean_product_title(raw)
+        if cleaned:
+            return cleaned
+
+    # 4. URL : extraire le slug du path (Amazon, etc.)
+    if url:
+        name_from_url = _name_from_url(url)
+        if name_from_url:
+            return name_from_url
 
     return ""
+
+
+# Mots à retirer du début/fin d'un titre de produit
+_TITLE_STRIP_WORDS = re.compile(
+    r"^(amazon\.com\s*:\s*|buy\s+|shop\s+|online\s+|"
+    r"latest\s+|best\s+|new\s+|official\s+|"
+    r"free\s+shipping\s+[\-:|]\s*)",
+    re.IGNORECASE,
+)
+_TITLE_STRIP_TAIL = re.compile(
+    r"\s*[\-:|]\s*(amazon\.com|buy\s+online|free\s+shipping|"
+    r"in\s+stock|prime|trusted\s+store)$",
+    re.IGNORECASE,
+)
+
+
+def _clean_product_title(title: str) -> str:
+    """Nettoie un titre de produit (OpenGraph, <title>) en retirant le bruit."""
+    # Couper sur les séparateurs courants
+    for sep in (" | ", " – ", " — ", " - ", "|", "–", "—"):
+        if sep in title:
+            title = title.split(sep)[0].strip()
+            break
+    # Retirer les préfixes inutiles
+    title = _TITLE_STRIP_WORDS.sub("", title).strip()
+    # Retirer les suffixes inutiles
+    title = _TITLE_STRIP_TAIL.sub("", title).strip()
+    return title
+
+
+def _name_from_url(url: str) -> str:
+    """Extrait un nom lisible depuis l'URL (slug du path)."""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        path = parsed.path.strip("/")
+        if not path:
+            return ""
+        # Prendre le premier segment significatif du path
+        segments = [s for s in path.split("/") if s and not s.startswith("dp") and not s.startswith("ref")]
+        if not segments:
+            return ""
+        slug = segments[0]
+        # Amazon : le slug est entre le domaine et /dp/
+        # Convertir les tirets en espaces
+        name = slug.replace("-", " ").replace("_", " ").strip()
+        # Capitaliser la première lettre de chaque mot
+        name = " ".join(w.capitalize() for w in name.split() if len(w) > 1)
+        return name if len(name) > 3 else ""
+    except Exception:
+        return ""
 
 
 def auto_extract(html: str, url: str) -> list[Candidate]:
@@ -556,7 +609,7 @@ def test_extraction(
         return ExtractionResult(url=url, diagnostic=str(exc), status_code=None)
     elapsed = int((time.perf_counter() - start) * 1000)
 
-    product_name = extract_product_name(html)
+    product_name = extract_product_name(html, url)
 
     try:
         if strategy == Strategy.AUTO:

@@ -389,6 +389,7 @@ def create_app(
                     threshold=_to_decimal((body.get("alert") or {}).get("threshold"), "threshold"),
                 ),
                 interval_hours=int(body.get("interval_hours") or 6),
+                notify_via=str(body.get("notify_via") or "none"),
             )
         except ConfigError as exc:
             raise HTTPException(422, str(exc)) from exc

@@ -107,6 +107,7 @@ class TrackingConfig:
     interval_hours: int = 6
     confidence: float | None = None
     domain: str = ""
+    notify_via: str = "none"  # "none", "discord", "email", "both"
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[A-Za-z0-9_-]+", self.id):
@@ -150,6 +151,8 @@ class TrackingConfig:
             base["confidence"] = round(self.confidence, 2)
         if self.domain:
             base["domain"] = self.domain
+        if self.notify_via and self.notify_via != "none":
+            base["notify_via"] = self.notify_via
         return base
 
     @classmethod
@@ -199,6 +202,7 @@ class TrackingConfig:
             interval_hours=int(entry.get("interval_hours", 6)),
             confidence=_parse_float(entry.get("confidence"), None),
             domain=str(entry.get("domain", "")),
+            notify_via=str(entry.get("notify_via", "none")),
         )
 
 

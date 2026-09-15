@@ -98,6 +98,15 @@
             <option value="24">Une fois par jour</option>
           </select>
         </div>
+        <div class="field">
+          <label for="notify-via">Methode de notification</label>
+          <select id="notify-via">
+            <option value="none">Pas de notification</option>
+            <option value="discord">Discord</option>
+            <option value="email">Email</option>
+            <option value="both">Discord + Email</option>
+          </select>
+        </div>
       </div>
 
       <div id="expert-extra" hidden>
@@ -422,6 +431,7 @@
         max_price: $("max-price").value || null,
         interval_hours: Number($("interval").value || 6),
         alert: { mode: "price_below", threshold: $("target").value.trim() || null },
+        notify_via: $("notify-via").value || "none",
       };
 
       $("btn-save").disabled = true;
