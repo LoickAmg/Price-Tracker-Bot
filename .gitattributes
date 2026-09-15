@@ -1,0 +1,2 @@
+# Force LF line endings for all text files to avoid CRLF/LF noise in diffs
+* text=auto eol=lf

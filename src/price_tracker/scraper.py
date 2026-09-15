@@ -50,6 +50,11 @@ _DEFAULT_REGEX = r"\d[\d\s\u00a0]*(?:[.,]\d{1,2})?"
 
 _PRICE_STOPWORDS = ("abonnement", "subscription", "par mois", "/mois", "/month")
 
+_OLD_PRICE_CLASSES = re.compile(
+    r"(old|was|prev|ancien|barre|strike|crossed|removed|superseded)",
+    re.IGNORECASE,
+)
+
 
 class ScrapeError(Exception):
     """Échec du scraping ou de l'extraction du prix."""
@@ -351,6 +356,22 @@ def _clean_price_text(text: str) -> str:
     return re.sub(r"\s", " ", cleaned)
 
 
+def _is_strikethrough_price(element) -> bool:
+    """Detecte les prix barrés / anciens prix (balises del/s, classes old-price...)."""
+    # Balise del ou s → prix barré
+    if element.name in ("del", "s", "strike"):
+        return True
+    # Parent del/s → prix barré
+    for parent in element.parents:
+        if parent.name in ("del", "s", "strike"):
+            return True
+    # Classe CSS contenant un mot-clé d'ancien prix
+    classes = " ".join(element.get("class", []))
+    if _OLD_PRICE_CLASSES.search(classes):
+        return True
+    return False
+
+
 def _heuristic_candidates(html: str, url: str) -> list[Candidate]:
     """Collecte les candidats depuis des sélecteurs courants (mode Auto)."""
     soup = _soup(html)
@@ -360,6 +381,8 @@ def _heuristic_candidates(html: str, url: str) -> list[Candidate]:
         if selector.startswith("meta["):
             continue  # traité par extract_opengraph
         for element in soup.select(selector)[:3]:
+            if _is_strikethrough_price(element):
+                continue
             text = element.get_text(" ", strip=True)
             if not text or _looks_like_suggestion(text):
                 continue
